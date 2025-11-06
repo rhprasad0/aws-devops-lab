@@ -2,8 +2,12 @@
 
 Guidelines for coding agents (e.g., Amazon Q Developer, Claude Code, ChatGPT) working in this repository.
 
-This repo is a **learning lab** for building a **production-style, EKS-based, ephemeral platform on AWS**.  
-Primary user goal: **understand every piece** by building it step-by-step, not just “make it work”.
+This repo is a **learning lab** for building a **production-style, EKS-based, ephemeral platform on AWS**.
+Primary user goal: **understand every piece** by building it step-by-step, not just "make it work".
+
+**Timeline:** 16-20 weeks, part-time (12 hours/week on weekends)
+**Budget:** $250/month maximum
+**Learning approach:** Incremental, sustainable, with buffer weeks for consolidation
 
 Agents MUST follow the rules below.
 
@@ -11,10 +15,11 @@ Agents MUST follow the rules below.
 
 ## 1. Philosophy
 
-1. **Explain, don’t obscure.**
+1. **Explain, don't obscure.**
    - Prefer small, readable changes over huge generated blobs.
    - Add comments when introducing new patterns or non-obvious settings.
    - Assume the human is learning: justify design choices briefly in PR descriptions or code comments.
+   - **Explain WHY, not just WHAT**: e.g., "We use IRSA here instead of node IAM because it provides pod-level permissions isolation."
 
 2. **Everything as code.**
    - All infra: Terraform.
@@ -24,14 +29,22 @@ Agents MUST follow the rules below.
 3. **Ephemeral by default.**
    - This environment should be easy to **create, inspect, and destroy**.
    - The human should never be stuck with mystery resources or surprise bills.
+   - Always include cost estimates and cleanup verification steps.
 
 4. **Prod-parity, dev-scale.**
    - Use the **same tools** as production (EKS, ALB, IRSA, Karpenter, GitOps, etc.).
    - Use **minimal sizes & safe defaults** unless instructed otherwise.
+   - **Cost-awareness is paramount**: default to smallest instance types, shortest retention periods, and ephemeral storage.
 
 5. **Understand every piece.**
    - You write the Terraform/Helm yourself, stepwise.
-   - No forking huge templates you don’t understand.
+   - No forking huge templates you don't understand.
+
+6. **Sustainable learning pace.**
+   - This is a marathon, not a sprint. The user is learning part-time over 16-20 weeks.
+   - Respect buffer weeks for consolidation and catch-up.
+   - Do not rush ahead or skip foundational steps.
+   - Better to deeply understand 80% than superficially know 100%.
 
 ---
 
@@ -56,10 +69,12 @@ eks-ephemeral-lab/
 │  ├─ up.sh               # terraform apply + kubeconfig setup + basic checks
 │  ├─ down.sh             # terraform destroy + cleanup helpers
 │  ├─ kube.sh             # helper to configure kubectl for current env
+│  ├─ cost-check.sh       # query AWS Cost Explorer by tags
 │  └─ (optional: janitor helpers)
 ├─ Makefile               # make up / make down / utility targets
-├─ 12-week-eks-ephemeral-plan.md
-└─ AGENTS.md
+├─ .cost-budget           # Track actual spending vs budget
+├─ 16-20-WEEK-PLAN.md     # The detailed learning plan
+└─ AGENTS.md              # This file
 ```
 
 If restructuring is needed, propose it in a **small, well-documented diff**.
@@ -96,7 +111,8 @@ Agents **ARE allowed** to:
    - IAM roles/policies for controllers (AWS Load Balancer Controller, ExternalDNS, etc.).
    - Route 53 zones and records for lab domains.
    - ECR repositories.
-   - SQS/SNS/EventBridge, RDS/Aurora, etc. when called for in the 12-week plan.
+   - SQS/SNS/EventBridge, RDS/Aurora, etc. when called for in the 16-20 week plan.
+   - **Always include cost estimates** for any new infrastructure in comments or output.
 
 2. **Generate Helm/manifests** for:
    - Core controllers (Argo CD or Flux, AWS LB Controller, ExternalDNS, cert-manager, Karpenter, OTel, Kyverno/OPA, etc.).
@@ -117,16 +133,47 @@ When in doubt: prefer smaller, composable pieces over large all-in-one stacks.
 
 ---
 
-## 5. Forbidden / Sensitive Actions
+## 5. Cost Awareness (Budget: $250/month)
+
+Agents MUST:
+
+1. **Estimate costs before suggesting resources:**
+   - EKS control plane: $0.10/hour
+   - t3.small node: ~$0.02/hour
+   - ALB: ~$0.0225/hour + LCU charges
+   - NAT Gateway: $0.045/hour + data transfer (AVOID unless necessary)
+   - Aurora Serverless v2: ~$0.12/ACU-hour (use 0.5-1 ACU for lab)
+   - RDS t3.micro: ~$0.017/hour (cheaper alternative to Aurora)
+
+2. **Always suggest smallest viable sizes:**
+   - Nodes: t3.small, t4g.small, t3.medium (not t3.large+)
+   - RDS: t3.micro, t4g.micro (Single-AZ for lab)
+   - EBS: 20GB gp3 (not large volumes)
+   - Retention: hours/days, not weeks/months
+
+3. **Warn about persistent costs:**
+   - NAT Gateways ($32/month each)
+   - ALBs left running ($16/month each)
+   - EBS volumes not deleted with instances
+   - CloudWatch Logs with long retention
+
+4. **Include cleanup verification:**
+   - After `make down`, list steps to verify all resources are deleted
+   - Suggest scripts to check for leaked resources by tags
+
+---
+
+## 6. Forbidden / Sensitive Actions
 
 Agents MUST NOT:
 
-1. **Silently create expensive or risky resources** without explicit instructions in this repo:
-   - No NAT Gateway by default.
-   - No Shield Advanced.
-   - No large or multi-node OpenSearch domains for “just testing”.
+1. **Silently create expensive or risky resources:**
+   - **No NAT Gateway by default** (saves $32/month per AZ).
+   - No Shield Advanced ($3000/month).
+   - No large or multi-node OpenSearch domains for "just testing".
    - No large RDS/Aurora clusters beyond minimal dev/Serverless settings.
-   - No global or organization-wide SCP/IAM changes beyond this lab’s scope.
+   - No global or organization-wide SCP/IAM changes beyond this lab's scope.
+   - **Hard limit: No resource that costs >$5/day** without explicit approval and cost justification.
 
 2. **Bypass ephemerality:**
    - Do not remove `make down`.
@@ -145,7 +192,7 @@ If a proposed change might be dangerous, annotate it clearly in comments.
 
 ---
 
-## 6. Design Preferences
+## 7. Design Preferences
 
 When generating or modifying code, agents should:
 
@@ -162,40 +209,144 @@ When generating or modifying code, agents should:
 
 ---
 
-## 7. Interaction Pattern
+## 8. Interaction Pattern
 
 When the user asks an agent for help:
 
-1. **Read** `12-week-eks-ephemeral-plan.md` to understand context.
-2. **Identify** which week/step they’re on.
-3. **Propose**:
-   - The smallest set of Terraform/Helm/script changes needed.
-4. **Explain**:
-   - Briefly, in comments or summary, what each block does.
-5. **Output**:
-   - As patch-style code snippets or file contents the user can paste and review.
+1. **Read** `16-20-WEEK-PLAN.md` to understand context and timeline.
 
-Agents should assume the user wants to **read and understand** the diff, not blindly apply it.
+2. **Identify** which week/step they're on:
+   - If unclear, ask: "Which week are you working on?"
+   - Check if they've completed prerequisites (e.g., Week 0 setup before Week 1)
+   - Respect the learning sequence; don't suggest Week 10 tools for Week 2 problems
+
+3. **Assess scope and cost:**
+   - What's the time estimate for this task?
+   - What's the cost impact? (e.g., "This adds ~$2/session for ALB")
+   - Is this appropriate for their current week?
+
+4. **Propose**:
+   - The **smallest set** of Terraform/Helm/script changes needed
+   - One component at a time (e.g., "First add the IAM role, then we'll add the controller")
+   - Include verification steps
+
+5. **Explain**:
+   - WHY this approach (not just WHAT code)
+   - What could go wrong and how to debug
+   - Cost implications and cleanup steps
+   - In comments or summary, what each block does
+
+6. **Output**:
+   - As patch-style code snippets or file contents the user can paste and review
+   - Include testing commands
+   - Include cleanup verification
+
+7. **Follow up:**
+   - Suggest next steps aligned with their current week
+   - Remind about `make down` if resources were created
+   - Suggest buffer week activities if they're moving too fast
+
+**Agents should assume the user wants to READ and UNDERSTAND the diff, not blindly apply it.**
+
+**Special case - Buffer weeks:**
+If it's a buffer week (Week 7 or 13), suggest:
+- Refactoring and code cleanup
+- Documentation improvements
+- Cost analysis
+- Testing and experimentation
+- Research for upcoming weeks
+- Catching up if behind
+- DO NOT push ahead to next functional week
 
 ---
 
-## 8. Examples of Good Agent Behavior
+## 9. Examples of Good Agent Behavior
 
-- "Here’s a small `vpc.tf` that adds a two-AZ VPC with tags and no NAT Gateway. I’ll explain each block in comments."
-- "Here’s how to attach an IRSA role for the AWS Load Balancer Controller; I’ll also show the IAM policy so you can audit it."
-- "You’re on Week 5; let’s add a minimal GitHub Actions workflow that builds to ECR and updates your Helm values. I’ll keep it explicit."
+**Example 1 - Week 1 VPC:**
+> "Here's a small `vpc.tf` that adds a two-AZ VPC with tags and **no NAT Gateway** (saves $64/month). I'll explain each block in comments. The VPC will cost ~$0.50 per 6-hour session."
 
-## 9. Examples of Bad Agent Behavior
+**Example 2 - Week 4 Load Balancer:**
+> "You're on Week 4, let's add the AWS Load Balancer Controller. First, I'll create the IAM policy (here's the JSON so you can audit it). Then we'll install the Helm chart with minimal replicas. This adds ~$2.50/session for the ALB. Make sure to run `make down` after testing to delete the ALB."
 
-- "I created a full production platform with 3 NAT Gateways, OpenSearch, MSK, and Shield Advanced for you automatically."
-- "I forked a giant repo and dropped it in; don’t worry about the details."
-- "I edited your backend config and IAM so it might affect non-lab accounts."
-- "I removed `make down` and now resources are only deletable by hand."
+**Example 3 - Week 7 Buffer:**
+> "I see you've completed Week 6 ahead of schedule. Since Week 7 is a buffer week, I suggest: (1) Split your monolithic `main.tf` into `vpc.tf`, `eks.tf`, `iam.tf` for better organization, (2) Run `scripts/cost-check.sh` to review spending, (3) Update your README with what you've learned. Want help with any of these?"
+
+**Example 4 - Cost awareness:**
+> "Before we add Aurora Serverless v2, note that this will increase your session cost from $3 to $10-15. The plan schedules this for Week 15 when you're more comfortable with cost management. For Week 9, would you like to prototype with a simpler pattern first?"
+
+**Example 5 - Prerequisites check:**
+> "I see you want to add ExternalDNS (Week 5), but it looks like you haven't completed Week 4 (Load Balancer Controller) yet. The LB Controller is a prerequisite because you need Ingress resources for ExternalDNS to watch. Want to tackle Week 4 first?"
+
+## 10. Examples of Bad Agent Behavior
+
+**Bad Example 1 - Cost explosion:**
+> "I created a full production platform with 3 NAT Gateways, multi-AZ OpenSearch, MSK cluster, and Shield Advanced. (Cost: ~$500/month - over budget!)"
+
+**Bad Example 2 - Complexity dump:**
+> "I forked a 5000-line Terraform monorepo and dropped it in; don't worry about the details. Just run it."
+
+**Bad Example 3 - Dangerous changes:**
+> "I edited your backend config and IAM roles. This might affect other AWS resources in your account, but it should be fine."
+
+**Bad Example 4 - Breaks ephemerality:**
+> "I removed `make down` and added stateful resources that require manual cleanup. You'll need to go to the console to delete these."
+
+**Bad Example 5 - Skips learning steps:**
+> "You're on Week 2, but I added observability, CI/CD, security policies, and multi-region DR all at once. Here are 2000 lines of code."
+
+**Bad Example 6 - No cost estimate:**
+> "I added these resources [long list]. Run terraform apply. (No mention of cost impact or cleanup steps.)"
+
+**Bad Example 7 - Rushing past buffer weeks:**
+> "It's Week 7 (buffer week) but let's skip ahead to Week 10 observability since you're doing well."
+
+---
+
+## 11. Week 0 is MANDATORY
+
+**Before any infrastructure code is written**, agents must ensure Week 0 is complete:
+
+1. ✅ AWS Budget created ($250/month with alerts at 50%, 80%, 100%)
+2. ✅ Billing email alerts enabled
+3. ✅ MFA enabled on root account
+4. ✅ IAM user created with appropriate lab permissions
+5. ✅ S3 bucket for Terraform state (with versioning)
+6. ✅ DynamoDB table for state locking
+7. ✅ Cost allocation tags activated in AWS console
+
+**If a user asks for help with Week 1+ without mentioning Week 0:**
+- Ask: "Have you completed Week 0 (AWS account setup, billing alerts, Terraform state backend)?"
+- If no: "Let's do Week 0 first. It takes 4-6 hours but prevents surprise bills and state conflicts."
+- If yes: Proceed with their request
+
+**Why this matters:**
+- Without billing alerts, the user could exceed budget unknowingly
+- Without remote state, collaboration and recovery are impossible
+- Without proper IAM, security is compromised
+- Week 0 is the foundation; skipping it creates technical debt
+
+---
+
+## 12. Success Metrics for Agents
+
+Good agents help users achieve:
+
+✅ **Deep understanding** - User can explain every component from memory
+✅ **Confidence** - User can debug issues independently
+✅ **Cost control** - User stays within $250/month budget
+✅ **Clean habits** - User always runs `make down`, checks for leaked resources
+✅ **Production readiness** - Skills transfer directly to real-world AWS/K8s work
+✅ **Sustainable pace** - User completes 16-20 weeks without burnout
+✅ **Documentation** - Repo becomes personal reference with clear README, diagrams, runbooks
 
 ---
 
 By following this guide, agents help the user:
 
-- Learn AWS/EKS/DevOps patterns deeply.
-- Keep environments **ephemeral, safe, and understandable**.
-- Grow this repo into a trustworthy personal reference, not an opaque scaffold.
+- Learn AWS/EKS/DevOps patterns **deeply and sustainably**.
+- Keep environments **ephemeral, safe, cost-controlled, and understandable**.
+- Build skills at a **realistic part-time pace** without burnout.
+- Grow this repo into a **trustworthy personal reference**, not an opaque scaffold.
+- Develop **production-ready expertise** that transfers directly to professional work.
+
+**Remember:** This is a 16-20 week learning journey, not a sprint. Respect the timeline, explain deeply, and prioritize understanding over completion speed.
