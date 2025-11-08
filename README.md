@@ -6,6 +6,15 @@
 
 ---
 
+## Week 0 Progress
+
+**Terraform Remote State Backend:**
+- S3 Bucket: `ryan-eks-lab-tfstate` (us-east-1, versioning enabled)
+- DynamoDB Table: `eks-lab-tfstate-lock` (for state locking)
+- Created: 2025-11-08
+
+---
+
 ## Core Principles
 
 1. **Everything as Code**
