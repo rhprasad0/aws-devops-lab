@@ -213,7 +213,7 @@ When generating or modifying code, agents should:
 
 When the user asks an agent for help:
 
-1. **Read** `16-20-WEEK-PLAN.md` to understand context and timeline.
+1. **Read** `README.md` to understand context and timeline.
 
 2. **Identify** which week/step they're on:
    - If unclear, ask: "Which week are you working on?"
@@ -350,3 +350,47 @@ By following this guide, agents help the user:
 - Develop **production-ready expertise** that transfers directly to professional work.
 
 **Remember:** This is a 16-20 week learning journey, not a sprint. Respect the timeline, explain deeply, and prioritize understanding over completion speed.
+
+## 13. Tooling Rules — Amazon Q + Context7 (Required)
+
+### Intent
+Keep Terraform **current and correct** by consulting Context7 before generating or modifying code.
+
+### Required Workflow (enforced)
+1) **Context7 preflight (mandatory)**
+   - Query Context7 for:
+     - Provider major/minor version(s) in use
+     - Exact schema for each resource/data source (required/optional args, nested blocks)
+     - Deprecations/renames since prior majors (e.g., v5→v6)
+   - If Context7 returns anything that differs from cached patterns, **prefer Context7**.
+
+2) **Plan the change**
+   - Propose the smallest diff aligned to our repo layout (see §2 Repository Structure).
+   - Include a 2–4 bullet “Changes vs older pattern” note.
+
+3) **Generate output**
+   - Produce minimal, runnable Terraform targeting **`infra/*.tf` only** (no recursion).
+   - Add inline comments explaining non-obvious settings (see §1 Philosophy).
+   - Include cost notes per §5 (control plane, nodes, ALB, NAT, etc.).
+
+4) **Verify & clean up**
+   - Include quick verification commands.
+   - Remind about `make down` and leaked-resource checks by tags.
+
+### Guardrails
+- Do **not** read or cite caches under `.terraform/` or any hidden directories.
+- Stay within the **learning week** flow (see §8 and §11). Ask which week if unclear.
+- Keep IAM least-privilege and IRSA-first (see §7).
+
+### Output Format (exact)
+- **Header bullets**:
+  - Provider/resource versions (from Context7)
+  - Key diffs vs older patterns
+  - Cost impact (very short)
+- **Code block**: final Terraform
+- **Post-code**: verification steps + cleanup reminder
+
+### Quick Chat Snippets (copy/paste)
+- “Use Context7 to fetch the schema for `aws_iam_role` (current provider). Show diffs vs v5, then write the minimal Terraform for `infra/iam.tf`.”
+- “Validate `aws_lb_listener` args with Context7, then generate code. List any deprecated arguments we should avoid.”
+- “Before writing, confirm provider constraints for this repo and suggest updates to `versions.tf` if needed.”
