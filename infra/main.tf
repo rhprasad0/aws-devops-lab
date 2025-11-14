@@ -14,6 +14,14 @@ terraform {
       source  = "hashicorp/aws"
       version = "~> 6.0"
     }
+    kubernetes = {
+      source  = "hashicorp/kubernetes"
+      version = "~> 2.0"
+    }
+    helm = {
+      source  = "hashicorp/helm"
+      version = "~> 2.0"
+    }
   }
 }
 
@@ -27,6 +35,28 @@ provider "aws" {
       owner      = var.owner
       created_at = "2025-11-11"
       ttl_hours  = var.ttl_hours
+    }
+  }
+}
+
+provider "kubernetes" {
+  host                   = module.eks.cluster_endpoint
+  cluster_ca_certificate = base64decode(module.eks.cluster_certificate_authority_data)
+  exec {
+    api_version = "client.authentication.k8s.io/v1beta1"
+    command     = "aws"
+    args        = ["eks", "get-token", "--cluster-name", module.eks.cluster_name]
+  }
+}
+
+provider "helm" {
+  kubernetes {
+    host                   = module.eks.cluster_endpoint
+    cluster_ca_certificate = base64decode(module.eks.cluster_certificate_authority_data)
+    exec {
+      api_version = "client.authentication.k8s.io/v1beta1"
+      command     = "aws"
+      args        = ["eks", "get-token", "--cluster-name", module.eks.cluster_name]
     }
   }
 }
@@ -72,6 +102,23 @@ module "eks" {
   # Grant cluster creator admin permissions
   enable_cluster_creator_admin_permissions = true
   
+  # Add your IAM user as cluster admin
+  access_entries = {
+    eks-lab-admin = {
+      kubernetes_groups = []
+      principal_arn     = "arn:aws:iam::407645373626:user/eks-lab-admin"
+      
+      policy_associations = {
+        admin = {
+          policy_arn = "arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy"
+          access_scope = {
+            type = "cluster"
+          }
+        }
+      }
+    }
+  }
+  
   vpc_id     = module.vpc.vpc_id
   subnet_ids = module.vpc.private_subnets
   
@@ -101,18 +148,18 @@ module "eks" {
     main = {
       # AL2 is more stable for EKS bootstrap process
       ami_type       = "AL2_x86_64"
-      instance_types = ["t3.small"]
-      min_size       = 1
-      max_size       = 2
-      desired_size   = 1
+      instance_types = ["t3.medium"]
+      min_size       = 2
+      max_size       = 3
+      desired_size   = 2
       
       disk_size = 20
       
-      # 10-minute timeouts for faster feedback
+      # 15-minute timeouts for more reliable operations
       timeouts = {
-        create = "10m"
-        update = "10m"
-        delete = "10m"
+        create = "15m"
+        update = "15m"
+        delete = "15m"
       }
       
       # Fix IMDS hop limit for private subnets with NAT Gateway
@@ -123,4 +170,29 @@ module "eks" {
       }
     }
   }
+}
+
+# Argo CD Installation
+resource "kubernetes_namespace" "argocd" {
+  metadata {
+    name = "argocd"
+    labels = {
+      name                         = "argocd"
+      "app.kubernetes.io/name"     = "argocd"
+    }
+  }
+}
+
+resource "helm_release" "argocd" {
+  name       = "argocd"
+  repository = "https://argoproj.github.io/argo-helm"
+  chart      = "argo-cd"
+  namespace  = kubernetes_namespace.argocd.metadata[0].name
+  version    = "7.6.12"  # Stable version
+
+  values = [
+    file("../k8s/argocd/values.yaml")
+  ]
+
+  depends_on = [kubernetes_namespace.argocd]
 }
