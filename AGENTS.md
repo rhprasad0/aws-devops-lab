@@ -394,3 +394,54 @@ Keep Terraform **current and correct** by consulting Context7 before generating 
 - “Use Context7 to fetch the schema for `aws_iam_role` (current provider). Show diffs vs v5, then write the minimal Terraform for `infra/iam.tf`.”
 - “Validate `aws_lb_listener` args with Context7, then generate code. List any deprecated arguments we should avoid.”
 - “Before writing, confirm provider constraints for this repo and suggest updates to `versions.tf` if needed.”
+---
+
+## 7. DevSecOps & Security Expectations
+
+Security is a first-class concern in this lab, not an afterthought. Agents MUST:
+
+- Prefer least-privilege IAM and IRSA-based pod access instead of broad instance profiles or wildcard `"*"` policies.
+- Assume AWS Security Hub, GuardDuty, and Config are enabled in the lab account and avoid suggesting that they be disabled to “reduce noise.”
+- Default to HTTPS for any internet-facing service and call out when TLS, cert-manager, or ALB listener configuration needs to be tightened.
+- Use AWS Secrets Manager + External Secrets Operator (or equivalent) for sensitive data instead of putting credentials into Terraform, Helm values, or raw manifests.
+- Avoid introducing plaintext Kubernetes `Secret` manifests with hard-coded usernames/passwords unless explicitly asked for a throwaway demo.
+- Highlight security implications when proposing changes (for example, widening security groups, opening public endpoints, or changing RBAC).
+
+When generating code or plans, always include at least one short note explaining the security trade-offs of the proposed approach.
+
+### Security-Focused Prompt Snippets
+
+These example prompts are encouraged when using agents interactively:
+
+- “Using Context7, check the current recommended IAM policy for the AWS Load Balancer Controller and generate the least-privilege version for this lab.”
+- “Before writing Terraform, verify with Context7 how to scope Route 53 permissions to a single hosted zone ARN and avoid wildcards.”
+- “Validate that our new CI/CD job runs image scanning (e.g., Trivy) and fail the pipeline on critical vulnerabilities; show the Terraform and GitHub Actions changes.”
+- “Given the existing Kyverno policies, propose one or two additional rules that enforce non-root containers and basic label hygiene, starting in audit mode.”
+
+Agents should treat these DevSecOps expectations as hard constraints, not optional enhancements.
+
+---
+
+## DevSecOps & Security Expectations
+
+Security is a first-class concern in this lab, not an afterthought. Agents MUST:
+
+- Prefer least-privilege IAM and IRSA-based pod access instead of broad instance profiles or wildcard `"*"` policies.
+- Assume AWS Security Hub, GuardDuty, and Config are enabled in the lab account and avoid suggesting that they be disabled to “reduce noise.”
+- Default to HTTPS for any internet-facing service and call out when TLS, cert-manager, or ALB listener configuration needs to be tightened.
+- Use AWS Secrets Manager + External Secrets Operator (or equivalent) for sensitive data instead of putting credentials into Terraform, Helm values, or raw manifests.
+- Avoid introducing plaintext Kubernetes `Secret` manifests with hard-coded usernames/passwords unless explicitly asked for a throwaway demo.
+- Highlight security implications when proposing changes (for example, widening security groups, opening public endpoints, or changing RBAC).
+
+When generating code or plans, always include at least one short note explaining the security trade-offs of the proposed approach.
+
+### Security-Focused Prompt Snippets
+
+These example prompts are encouraged when using agents interactively:
+
+- “Using Context7, check the current recommended IAM policy for the AWS Load Balancer Controller and generate the least-privilege version for this lab.”
+- “Before writing Terraform, verify with Context7 how to scope Route 53 permissions to a single hosted zone ARN and avoid wildcards.”
+- “Validate that our new CI/CD job runs image scanning (e.g., Trivy) and fail the pipeline on critical vulnerabilities; show the Terraform and GitHub Actions changes.”
+- “Given the existing Kyverno policies, propose one or two additional rules that enforce non-root containers and basic label hygiene, starting in audit mode.”
+
+Agents should treat these DevSecOps expectations as hard constraints, not optional enhancements.

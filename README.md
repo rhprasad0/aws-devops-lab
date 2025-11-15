@@ -1,5 +1,26 @@
 # 16-20 Week Production-Style AWS/EKS DevOps Learning Plan (Ephemeral Lab)
 
+
+## Security Baseline
+
+This lab is intended to build production-style habits, including security by default. Before (or as soon as) you begin the weekly work, ensure the following are in place in your lab account/cluster:
+
+- **Identity & access**
+  - Root account is not used for day-to-day work; an IAM user or role with MFA is required.
+  - IAM policies are created with least privilege in mind (no broad `"*:*"` policies except for short-lived experiments).
+- **AWS security services**
+  - AWS Security Hub is enabled in the primary lab region, using the AWS-managed security standards as a reference.
+  - Amazon GuardDuty is enabled to surface suspicious activity in the account.
+  - AWS Config is enabled with at least basic rules for S3 buckets, security groups, and IAM.
+- **Networking & data**
+  - VPCs, subnets, and security groups avoid `0.0.0.0/0` inbound access except where explicitly documented (e.g., ALB HTTP/HTTPS).
+  - Terraform state buckets and any other persistent data stores are private, encrypted, and tagged for ownership and TTL.
+- **Kubernetes & workloads**
+  - EKS clusters are created with IAM Roles for Service Accounts (IRSA) enabled, and new workloads that talk to AWS APIs should prefer IRSA over node roles.
+  - Publicly exposed services are fronted by an ingress/ALB and, where possible, served over HTTPS using cert-manager and ACM/Let’s Encrypt.
+
+Treat these as guardrails: future weeks assume they are present so you can focus on iterating toward a secure, observable, and maintainable platform instead of bolting security on later.
+
 **Timeline:** Part-time weekends (6 hours/day = 12 hours/week)
 **Budget:** ~$250/month
 **Background:** Data engineer with GCP/Terraform/EKS experience, building production-grade AWS/DevOps skills
@@ -33,6 +54,7 @@
 4. **Prod-Parity, Not Prod-Scale**
    - Use the **same tools and patterns** as production.
    - Keep node sizes, traffic, and retention small.
+   - Build with a "security by default" mindset across IAM, networking, CI/CD, and runtime.
 
 5. **Understand Every Piece**
    - You write the Terraform/Helm yourself, stepwise.
@@ -94,6 +116,12 @@ eks-ephemeral-lab/
    - Document your tagging convention
    - Set up AWS Cost Allocation Tags in console
    - Activate tags: `project`, `env`, `owner`, `ttl_hours`
+
+5. **Security Baseline Services:**
+   - Enable AWS Security Hub, GuardDuty, and AWS Config in your primary lab region.
+   - Use default AWS-managed security standards in Security Hub as a reference, even if you don't remediate everything yet.
+   - Confirm the Terraform state S3 bucket is private, encrypted, and only accessible by your lab IAM user/role.
+   - Note these services and guardrails in the README under a "Security Baseline" subsection.
 
 **Deliverable:**
 - AWS account secured with MFA
@@ -157,10 +185,15 @@ eks-ephemeral-lab/
 - How default_tags propagate
 - VPC subnet requirements for EKS
 
+
+**Security Focus:**
+- Avoid security groups with wide-open inbound rules; if you must use `0.0.0.0/0` for testing, restrict it to HTTP/HTTPS and document the justification.
+- Design network boundaries consciously (public vs private subnets, NAT/no-NAT) and record how they reduce your exposed attack surface.
+- Enable VPC Flow Logs (even with short retention) so you can later investigate suspicious traffic patterns.
+
 **Cost:** ~$0.50 (S3, minimal VPC resources)
 
 ---
-
 ## Week 2 – First Ephemeral EKS Cluster
 
 **Time:** 10-12 hours
@@ -207,10 +240,15 @@ eks-ephemeral-lab/
 - Why IRSA matters
 - Node group vs self-managed nodes
 
+
+**Security Focus:**
+- Use IRSA as the default for any pod that talks to AWS APIs instead of relying on node IAM roles.
+- Set up basic Kubernetes RBAC so you can experiment with read-only vs admin access and verify permissions with `kubectl auth can-i`.
+- Think through EKS endpoint exposure: document how you would lock it down to private endpoint plus VPN/SSM in a real environment.
+
 **Cost per 6-hour session:** ~$1.50 (EKS + 1 node)
 
 ---
-
 ## Week 3 – GitOps Foundation (Argo CD)
 
 **Time:** 8-10 hours
@@ -254,10 +292,15 @@ eks-ephemeral-lab/
 - Argo Application CRD
 - Difference between Argo CD and manual kubectl
 
+
+**Security Focus:**
+- Avoid long-lived `admin` usage in Argo CD; rotate the default password, create named users, and document how you'd integrate SSO in a real setup.
+- Treat the GitOps repo as a security boundary: all cluster changes should flow through PRs and Git history, not ad-hoc `kubectl` changes.
+- Use Argo CD Projects and namespaces to limit which apps can deploy where, even in this single-cluster lab.
+
 **Cost:** Same as Week 2 (~$1.50/session)
 
 ---
-
 ## Week 4 – AWS Load Balancer Controller
 
 **Time:** 10-12 hours
@@ -305,10 +348,15 @@ eks-ephemeral-lab/
 - IRSA for pod-to-AWS communication
 - ALB target group health checks
 
+
+**Security Focus:**
+- Keep the ALB security group minimal: inbound only on required HTTP/HTTPS ports, outbound restricted to the VPC where possible.
+- Ensure the controller's IRSA role has the least-privilege IAM policy recommended by AWS, not a wildcard admin role.
+- Document how you would attach AWS WAF to your public ALBs to mitigate common web attacks in a production setting.
+
 **Cost:** ~$2.50/session (ALB adds ~$0.15/hour)
 
 ---
-
 ## Week 5 – DNS Automation with ExternalDNS
 
 **Time:** 8-10 hours
@@ -345,10 +393,15 @@ eks-ephemeral-lab/
 - DNS propagation time
 - IAM least privilege for single hosted zone
 
+
+**Security Focus:**
+- Scope the ExternalDNS IAM policy to the specific hosted zone ARN instead of allowing changes to all Route 53 zones.
+- Use a dedicated lab subdomain (for example `eks-lab.example.com`) so any misconfiguration is isolated from your primary domains.
+- Avoid wildcard records unless you need them, and record which services are intentionally exposed by DNS.
+
 **Cost:** ~$3/session (Route 53: $0.50/zone/month + query costs)
 
 ---
-
 ## Week 6 – TLS with cert-manager
 
 **Time:** 8-10 hours
@@ -386,10 +439,15 @@ eks-ephemeral-lab/
 - DNS-01 vs HTTP-01 challenges
 - How cert-manager integrates with Ingress
 
+
+**Security Focus:**
+- Ensure all public endpoints are HTTPS-only and either redirect HTTP to HTTPS or remove insecure listeners entirely.
+- Keep certificate and private key secrets in dedicated namespaces and treat them as sensitive data in your backup/restore plans.
+- Run basic TLS checks (via curl or openssl) to validate certificate chains and hostname correctness rather than assuming it works.
+
 **Cost:** Same as Week 5 (~$3/session)
 
 ---
-
 ## BUFFER WEEK 7 – Consolidation & Catch-Up
 
 **Goal:** Solidify everything built so far
@@ -404,6 +462,12 @@ eks-ephemeral-lab/
    - Update README with architecture diagram (draw.io or Mermaid)
    - Document `make` commands
    - Add troubleshooting section
+
+
+**Security Focus:**
+- Create a simple threat model for your lab platform: identify key assets, actors, and the top few threats you care about.
+- Review IAM roles, Kubernetes RBAC bindings, and IRSA usage to remove any overly broad permissions you added while experimenting.
+- Scan your Terraform and manifests for hard-coded secrets or credentials and replace them with proper secret mechanisms.
 
 3. Cost analysis:
    - Review Cost Explorer by tags
@@ -420,7 +484,6 @@ eks-ephemeral-lab/
    - Plan sample application to deploy
 
 ---
-
 ## Week 8 – CI/CD Part 1: Container Registry & Build Pipeline
 
 **Time:** 10-12 hours
@@ -458,10 +521,15 @@ eks-ephemeral-lab/
 - GitHub OIDC vs access keys
 - Container image tagging strategies
 
+
+**Security Focus:**
+- Introduce image scanning (for example, Trivy) into the build pipeline and at least fail builds on high/critical vulnerabilities.
+- Prefer immutable image tags (like git SHAs) instead of `latest` so you can trace exactly what is running in the cluster.
+- Use GitHub OIDC to assume AWS roles instead of long-lived AWS access keys stored as CI secrets.
+
 **Cost:** ~$3.50/session (ECR: $0.10/GB/month storage)
 
 ---
-
 ## Week 9 – CI/CD Part 2: GitOps Deployment
 
 **Time:** 10-12 hours
@@ -499,10 +567,15 @@ eks-ephemeral-lab/
 - How to handle secrets (preview: Week 14)
 - Deployment strategies tradeoffs
 
+
+**Security Focus:**
+- Require that only images that have passed security scans are referenced in manifests that get merged to main or deployed.
+- Use branches and pull requests to model environment promotion so there is always a review step before production-like changes.
+- Avoid storing long-lived secrets directly in your CI system; plan to integrate with AWS Secrets Manager and External Secrets Operator.
+
 **Cost:** Same as Week 8 (~$3.50/session)
 
 ---
-
 ## Week 10 – Observability Part 1: Metrics & Dashboards
 
 **Time:** 10-12 hours
@@ -544,10 +617,15 @@ eks-ephemeral-lab/
 - Basic PromQL queries
 - Grafana data source configuration
 
+
+**Security Focus:**
+- Include security-relevant metrics (4xx/5xx rates, anomalous traffic per endpoint) in Grafana dashboards alongside SLOs.
+- Lock down access to metrics and dashboards so they are not exposed publicly, even in the lab.
+- Use labels and naming to clearly distinguish between internal and internet-facing services when building dashboards.
+
 **Cost:** ~$4/session (add ~$0.50 for small EBS volume)
 
 ---
-
 ## Week 11 – Observability Part 2: Logs & Traces
 
 **Time:** 10-12 hours
@@ -590,10 +668,15 @@ eks-ephemeral-lab/
 - Trace context propagation
 - Observability correlation (metrics → logs → traces)
 
+
+**Security Focus:**
+- Ensure application logs include enough structured context (user, action, trace ID) to support security investigations.
+- Review CloudTrail and GuardDuty findings as part of this week and walk through how you would triage at least one of them.
+- Define log retention settings that balance cost with the need to investigate incidents (for example, 7–14 days by default).
+
 **Cost:** ~$5/session (CloudWatch Logs: ~$0.50/GB ingested)
 
 ---
-
 ## Week 12 – Scaling: Karpenter or Cluster Autoscaler
 
 **Time:** 8-10 hours
@@ -646,10 +729,15 @@ eks-ephemeral-lab/
 - Node consolidation and bin-packing
 - TTL for node deprovisioning
 
+
+**Security Focus:**
+- Use node templates or provisioners that specify supported, up-to-date instance families and avoid legacy types by default.
+- Continue to rely on IRSA for pod permissions so scaling nodes does not widen the blast radius of any instance profile.
+- Document any security implications of using Spot instances (for example, shorter lifetimes but same IAM role power).
+
 **Cost:** ~$4/session (mostly same, potential Spot savings)
 
 ---
-
 ## BUFFER WEEK 13 – Consolidation & Advanced Topics Research
 
 **Goal:** Catch up, document, and research next phase
@@ -659,6 +747,12 @@ eks-ephemeral-lab/
    - Consolidate Helm charts
    - Standardize labels and annotations
    - Document observability stack in README
+
+
+**Security Focus:**
+- Perform a small security audit: look for privileged pods, hostPath mounts, and workloads that violate your own best practices.
+- Evaluate tools like kube-bench or kube-hunter and decide where they would fit into a pre-production security pipeline.
+- Tighten or remove any temporary exceptions you introduced while getting features working in earlier weeks.
 
 2. Cost optimization review:
    - Check actual costs vs budget
@@ -675,7 +769,6 @@ eks-ephemeral-lab/
    - Plan sample app with database
 
 ---
-
 ## Week 14 – Security & Policy Enforcement
 
 **Time:** 10-12 hours
@@ -728,10 +821,15 @@ eks-ephemeral-lab/
 - Image vulnerability scanning
 - Secrets lifecycle in K8s
 
+
+**Security Focus:**
+- Design Kyverno/Gatekeeper policies so they start in audit mode, then promote to enforce once you understand the impact.
+- Enforce baseline security requirements such as labels, non-root containers, and restricted capabilities for most workloads.
+- Backed by External Secrets Operator, ensure no new plaintext Kubernetes Secrets with hard-coded credentials are introduced.
+
 **Cost:** ~$5/session (Secrets Manager: $0.40/secret/month)
 
 ---
-
 ## Week 15 – Stateful Services: RDS/Aurora
 
 **Time:** 10-12 hours
@@ -767,6 +865,12 @@ eks-ephemeral-lab/
    - Check Grafana for DB connection metrics
    - `make down` → Aurora is destroyed
 
+
+**Security Focus:**
+- Ensure the database is encrypted at rest with KMS and only reachable from the relevant EKS node or security groups.
+- Use a dedicated, least-privilege database user for the application instead of connecting as an admin or superuser.
+- Keep all database credentials in AWS Secrets Manager and sync them via ESO; do not let them drift into git or CI variables.
+
 **Cost:** ~$10-15/session (Aurora Serverless v2: ~$0.12/ACU-hour)
 
 **Cost Optimization:**
@@ -780,7 +884,6 @@ eks-ephemeral-lab/
 - Secrets rotation (read docs, not implemented yet)
 
 ---
-
 ## Week 16 – Async Work: SQS, SNS & Workers
 
 **Time:** 8-10 hours
@@ -826,10 +929,15 @@ eks-ephemeral-lab/
 - Visibility timeout and message deletion
 - DLQ patterns for poison messages
 
+
+**Security Focus:**
+- Give producers and consumers separate IRSA roles with the minimal SQS/SNS permissions each needs.
+- Treat message bodies as potentially sensitive data and avoid putting secrets or PII into log messages or SNS subjects.
+- Design and test dead-letter queues with an eye toward abuse cases, such as attackers flooding your system with bad messages.
+
 **Cost:** ~$6/session (Aurora + minimal SQS/SNS costs ~$0.01)
 
 ---
-
 ## Week 17 – Resilience Testing & Chaos Engineering
 
 **Time:** 10-12 hours
@@ -881,10 +989,15 @@ eks-ephemeral-lab/
 - Real failure scenarios vs theory
 - Observability during incidents
 
+
+**Security Focus:**
+- Include chaos experiments that simulate security-relevant failures, such as invalid credentials or blocked deployments.
+- For each experiment, write a short runbook describing how you would distinguish between misconfiguration and active attack.
+- Use chaos results to refine alerts and dashboards so they highlight symptoms you would expect in a real incident.
+
 **Cost:** ~$12/session (Aurora + potential extra node briefly)
 
 ---
-
 ## Week 18 – EKS Cluster Upgrade
 
 **Time:** 8-10 hours
@@ -928,10 +1041,15 @@ eks-ephemeral-lab/
 - Addon version compatibility
 - Rollback procedures
 
+
+**Security Focus:**
+- Treat cluster and addon upgrades as a primary way to pick up security patches and close off deprecated, risky APIs.
+- Audit workloads for deprecated Kubernetes APIs before upgrading so you are not forced to re-enable insecure configurations.
+- Record the versions you upgrade from/to and the security-related release notes you care about.
+
 **Cost:** ~$8/session (mostly same, brief dual node groups)
 
 ---
-
 ## Week 19 – Multi-Region & Disaster Recovery
 
 **Time:** 10-12 hours
@@ -964,12 +1082,23 @@ eks-ephemeral-lab/
 **Understand:**
 - Multi-region networking complexity
 - Data replication lag
+
+**Security Focus:**
+- Design DR with security in mind: mirror IAM roles and policies carefully instead of loosening them for convenience.
+- Think through how you would rebuild trust in a secondary region if the primary region's credentials or images were compromised.
+- Plan for regional KMS keys and secrets replication strategies that avoid sharing master keys across regions unnecessarily.
+
 - Cost tradeoffs of standby resources
 - RTO/RPO (Recovery Point Objective) concepts
 
 **Cost:** ~$15/session (brief second region cluster + data transfer)
 
 ---
+
+**Security Focus:**
+- Extend your TTL/janitor logic to clean up stale IAM roles, security groups, and secrets tagged for expiration.
+- Review Security Hub and GuardDuty one more time and note which findings you would prioritize in a real environment.
+- Summarize the DevSecOps practices you implemented across the lab as part of your final documentation.
 
 ## Week 20 – Cost Optimization, TTL Janitor & Wrap-Up
 
@@ -1057,7 +1186,6 @@ If you finish early or want to continue:
    - Cost showback per team
 
 ---
-
 ## Weekly Time Commitment Summary
 
 | Week | Topic | Est. Hours | Cost/Session |
