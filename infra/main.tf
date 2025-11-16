@@ -22,6 +22,11 @@ terraform {
       source  = "hashicorp/helm"
       version = "~> 2.0"
     }
+    random = {
+      source  = "hashicorp/random"
+      version = "~> 3.0"
+      # Required for unique S3 bucket names in security.tf (Config storage)
+    }
   }
 }
 

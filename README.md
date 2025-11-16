@@ -9,9 +9,9 @@ This lab is intended to build production-style habits, including security by def
   - Root account is not used for day-to-day work; an IAM user or role with MFA is required.
   - IAM policies are created with least privilege in mind (no broad `"*:*"` policies except for short-lived experiments).
 - **AWS security services**
-  - AWS Security Hub is enabled in the primary lab region, using the AWS-managed security standards as a reference.
-  - Amazon GuardDuty is enabled to surface suspicious activity in the account.
-  - AWS Config is enabled with at least basic rules for S3 buckets, security groups, and IAM.
+  - **AWS Security Hub** is enabled in the primary lab region (us-east-1), using the AWS-managed security standards as a reference.
+  - **Amazon GuardDuty** is enabled to surface suspicious activity in the account, with Kubernetes audit logs monitoring for EKS.
+  - **AWS Config** is enabled with basic rules for S3 buckets, security groups, IAM roles/policies, and EKS clusters. Uses daily recording frequency to control costs.
 - **Networking & data**
   - VPCs, subnets, and security groups avoid `0.0.0.0/0` inbound access except where explicitly documented (e.g., ALB HTTP/HTTPS).
   - Terraform state buckets and any other persistent data stores are private, encrypted, and tagged for ownership and TTL.
@@ -20,6 +20,8 @@ This lab is intended to build production-style habits, including security by def
   - Publicly exposed services are fronted by an ingress/ALB and, where possible, served over HTTPS using cert-manager and ACM/Let’s Encrypt.
 
 Treat these as guardrails: future weeks assume they are present so you can focus on iterating toward a secure, observable, and maintainable platform instead of bolting security on later.
+
+**Security Services Cost:** ~$3-5/month for minimal usage with daily Config recording and basic GuardDuty monitoring.
 
 **Timeline:** Part-time weekends (6 hours/day = 12 hours/week)
 **Budget:** ~$250/month

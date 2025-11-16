@@ -18,4 +18,7 @@ plan:
 kube:
 	aws eks update-kubeconfig --name $(ENV)-eks --region $(REGION)
 
-.PHONY: up down plan kube
+security:
+	./scripts/verify-security.sh
+
+.PHONY: up down plan kube security
