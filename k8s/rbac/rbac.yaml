@@ -1,0 +1,76 @@
+---
+# Read-only access for developers
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: eks-lab-readonly
+rules:
+- apiGroups: [""]
+  resources: ["pods", "services", "configmaps", "secrets"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: ["apps"]
+  resources: ["deployments", "replicasets", "daemonsets", "statefulsets"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: ["networking.k8s.io"]
+  resources: ["ingresses", "networkpolicies"]
+  verbs: ["get", "list", "watch"]
+
+---
+# Developer access - can modify resources in specific namespaces
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  namespace: default
+  name: eks-lab-developer
+rules:
+- apiGroups: [""]
+  resources: ["pods", "services", "configmaps"]
+  verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+- apiGroups: ["apps"]
+  resources: ["deployments", "replicasets"]
+  verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+- apiGroups: [""]
+  resources: ["secrets"]
+  verbs: ["get", "list", "watch"]  # Read-only secrets for security
+
+---
+# Test service account for applications
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: app-readonly
+  namespace: default
+  annotations:
+    # IRSA annotation will be added when we create IAM role
+    eks.amazonaws.com/role-arn: ""
+
+---
+# Bind readonly access to test service account
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: app-readonly-binding
+subjects:
+- kind: ServiceAccount
+  name: app-readonly
+  namespace: default
+roleRef:
+  kind: ClusterRole
+  name: eks-lab-readonly
+  apiGroup: rbac.authorization.k8s.io
+
+---
+# Example: Bind developer role to a user (commented out - no real users yet)
+# apiVersion: rbac.authorization.k8s.io/v1
+# kind: RoleBinding
+# metadata:
+#   name: developer-binding
+#   namespace: default
+# subjects:
+# - kind: User
+#   name: developer@company.com
+#   apiGroup: rbac.authorization.k8s.io
+# roleRef:
+#   kind: Role
+#   name: eks-lab-developer
+#   apiGroup: rbac.authorization.k8s.io
