@@ -226,7 +226,58 @@ resource "helm_release" "argocd" {
   depends_on = [kubernetes_namespace.argocd]
 }
 
-# Sample App Application
+# Argo CD Project for sample apps (security boundary)
+resource "kubernetes_manifest" "sample_apps_project" {
+  manifest = {
+    apiVersion = "argoproj.io/v1alpha1"
+    kind       = "AppProject"
+    metadata = {
+      name      = "sample-apps"
+      namespace = "argocd"
+      labels = {
+        "app.kubernetes.io/name" = "sample-apps-project"
+      }
+    }
+    spec = {
+      description = "Project for sample applications in the EKS lab"
+      
+      sourceRepos = [
+        "https://github.com/rhprasad0/aws-devops-lab"
+      ]
+      
+      destinations = [
+        {
+          namespace = "default"
+          server    = "https://kubernetes.default.svc"
+        },
+        {
+          namespace = "test"
+          server    = "https://kubernetes.default.svc"
+        }
+      ]
+      
+      namespaceResourceWhitelist = [
+        { group = "", kind = "ConfigMap" },
+        { group = "", kind = "Secret" },
+        { group = "", kind = "Service" },
+        { group = "", kind = "ServiceAccount" },
+        { group = "apps", kind = "Deployment" },
+        { group = "apps", kind = "ReplicaSet" },
+        { group = "networking.k8s.io", kind = "Ingress" }
+      ]
+      
+      clusterResourceBlacklist = [
+        { group = "", kind = "Namespace" },
+        { group = "rbac.authorization.k8s.io", kind = "ClusterRole" },
+        { group = "rbac.authorization.k8s.io", kind = "ClusterRoleBinding" }
+      ]
+    }
+  }
+
+  depends_on = [helm_release.argocd]
+}
+
+# Sample App Application (now using restricted project)
 resource "kubernetes_manifest" "sample_app_application" {
   manifest = {
     apiVersion = "argoproj.io/v1alpha1"
@@ -236,7 +287,7 @@ resource "kubernetes_manifest" "sample_app_application" {
       namespace = "argocd"
     }
     spec = {
-      project = "default"
+      project = "sample-apps"  # Use restricted project instead of default
       source = {
         repoURL        = "https://github.com/rhprasad0/aws-devops-lab"
         targetRevision = "HEAD"
@@ -258,5 +309,8 @@ resource "kubernetes_manifest" "sample_app_application" {
     }
   }
 
-  depends_on = [helm_release.argocd]
+  depends_on = [
+    helm_release.argocd,
+    kubernetes_manifest.sample_apps_project
+  ]
 }
