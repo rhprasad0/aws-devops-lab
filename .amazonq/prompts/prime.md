@@ -1,1 +1,1 @@
-Please run git ls-files to bring the project files into the current context. Be sure to use the Context7 MCP server before writing/modifying Terraform code. 
+Please run git ls-files to bring the project files into the current context. Be sure to THINK HARD and use the Context7 MCP server before writing/modifying Terraform code. 
