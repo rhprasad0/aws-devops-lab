@@ -101,9 +101,6 @@ module "eks" {
   name               = "${var.env}-eks"
   kubernetes_version = "1.31"
   
-  endpoint_public_access  = true
-  endpoint_private_access = true
-  
   # Grant cluster creator admin permissions
   enable_cluster_creator_admin_permissions = true
   
@@ -122,10 +119,37 @@ module "eks" {
         }
       }
     }
+    
+    # Temporarily disabled - enable when Tailscale is deployed
+    # tailscale-role = {
+    #   kubernetes_groups = []
+    #   principal_arn     = var.enable_tailscale ? aws_iam_role.tailscale[0].arn : null
+    #   
+    #   policy_associations = {
+    #     admin = {
+    #       policy_arn = "arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy"
+    #       access_scope = {
+    #         type = "cluster"
+    #       }
+    #     }
+    #   }
+    # }
   }
   
   vpc_id     = module.vpc.vpc_id
   subnet_ids = module.vpc.private_subnets
+  
+  # Endpoint configuration (correct terraform-aws-modules/eks syntax)
+  endpoint_public_access  = !var.eks_private_only
+  endpoint_private_access = true
+  
+  # Restrict public access to Tailscale network when public access is enabled
+  endpoint_public_access_cidrs = var.eks_private_only ? [] : [
+    "0.0.0.0/0",  # Temporarily allow all - restrict after Tailscale is working
+    # "100.64.0.0/10",  # Tailscale CGNAT range (not allowed by AWS)
+    # Add your current public IP here if needed for laptop access
+    # "YOUR.PUBLIC.IP/32"
+  ]
   
   # Enable logging for faster debugging
   enabled_log_types = ["api", "audit", "authenticator"]

@@ -1220,6 +1220,57 @@ If you finish early or want to continue:
 
 ---
 
+## Optional: Tailscale Subnet Router for Private EKS Access
+
+For enhanced security, you can deploy a Tailscale subnet router that advertises your VPC routes to your Tailscale network. This allows you to:
+
+- Access the private EKS endpoint directly from your local machine
+- Run `kubectl` commands without SSH-ing into a bastion host
+- Maintain zero-trust network access to your lab environment
+
+**Setup:**
+
+1. **Get Tailscale auth key:**
+   ```bash
+   # Generate a reusable auth key in Tailscale admin console
+   # Settings → Keys → Generate auth key (reusable, ephemeral)
+   export TF_VAR_tailscale_auth_key="tskey-auth-..."
+   ```
+
+2. **Enable Tailscale subnet router:**
+   ```bash
+   export TF_VAR_enable_tailscale=true
+   make up
+   ```
+
+3. **Approve subnet routes in Tailscale admin:**
+   - Go to Tailscale admin console → Machines
+   - Find "eks-gateway" machine
+   - Approve the advertised subnet routes (10.0.0.0/16)
+
+4. **Enable route acceptance on your local machine:**
+   ```bash
+   sudo tailscale up --accept-routes
+   ```
+
+5. **Make EKS private-only and test:**
+   ```bash
+   export TF_VAR_eks_private_only=true
+   make up
+   ./scripts/setup-local-kubectl.sh
+   kubectl get nodes  # Should work via Tailscale!
+   ```
+
+**Cost:** ~$7/month (t3.micro instance)
+
+**Security benefits:**
+- EKS endpoint not exposed to internet (`eks_private_only = true`)
+- Zero-trust access via Tailscale mesh network
+- No SSH keys or bastion host management
+- Audit trail of all network access
+
+---
+
 ## Success Criteria
 
 By Week 20, you should be able to:
