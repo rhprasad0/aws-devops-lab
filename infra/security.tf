@@ -178,12 +178,79 @@ resource "random_id" "bucket_suffix" {
 # Data source for account ID
 data "aws_caller_identity" "current" {}
 
-# 3. Security Hub - Enable last (aggregates findings from GuardDuty and Config)
+# 3. VPC Flow Logs - Network traffic monitoring
+resource "aws_cloudwatch_log_group" "vpc_flow_log" {
+  name              = "/aws/vpc/flowlogs"
+  retention_in_days = 7  # Short retention for cost control (~$0.50/month)
+
+  tags = {
+    Name = "vpc-flow-logs"
+  }
+}
+
+# IAM role for VPC Flow Logs to write to CloudWatch
+data "aws_iam_policy_document" "flow_log_assume_role" {
+  statement {
+    effect = "Allow"
+    
+    principals {
+      type        = "Service"
+      identifiers = ["vpc-flow-logs.amazonaws.com"]
+    }
+    
+    actions = ["sts:AssumeRole"]
+  }
+}
+
+resource "aws_iam_role" "flow_log" {
+  name               = "eks-lab-vpc-flow-log-role"
+  assume_role_policy = data.aws_iam_policy_document.flow_log_assume_role.json
+}
+
+# IAM policy for Flow Logs to write to CloudWatch
+data "aws_iam_policy_document" "flow_log_policy" {
+  statement {
+    effect = "Allow"
+    
+    actions = [
+      "logs:CreateLogGroup",
+      "logs:CreateLogStream", 
+      "logs:PutLogEvents",
+      "logs:DescribeLogGroups",
+      "logs:DescribeLogStreams"
+    ]
+    
+    resources = ["*"]
+  }
+}
+
+resource "aws_iam_role_policy" "flow_log" {
+  name   = "eks-lab-vpc-flow-log-policy"
+  role   = aws_iam_role.flow_log.id
+  policy = data.aws_iam_policy_document.flow_log_policy.json
+}
+
+# VPC Flow Log - captures ALL traffic (accept/reject) for security monitoring
+resource "aws_flow_log" "vpc" {
+  iam_role_arn    = aws_iam_role.flow_log.arn
+  log_destination = aws_cloudwatch_log_group.vpc_flow_log.arn
+  traffic_type    = "ALL"  # Capture accepted AND rejected traffic
+  vpc_id          = module.vpc.vpc_id
+
+  tags = {
+    Name = "eks-lab-vpc-flow-log"
+  }
+}
+
+# 4. Security Hub - Enable last (aggregates findings from GuardDuty and Config)
 resource "aws_securityhub_account" "main" {
   enable_default_standards = true
 
   depends_on = [
     aws_guardduty_detector.main,
-    aws_config_configuration_recorder.main
+    aws_config_configuration_recorder.main,
+    aws_flow_log.vpc
   ]
 }
+
+
