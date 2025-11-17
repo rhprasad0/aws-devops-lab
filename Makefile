@@ -10,7 +10,8 @@ up:
 	kubectl get nodes
 
 down:
-	cd infra && terraform destroy -auto-approve
+	./scripts/cleanup-aws-resources.sh
+	cd infra && TF_VAR_enable_argocd=false terraform destroy -auto-approve
 
 plan:
 	cd infra && terraform plan
@@ -21,4 +22,7 @@ kube:
 security:
 	./scripts/verify-security.sh
 
-.PHONY: up down plan kube security
+cleanup:
+	./scripts/cleanup-aws-resources.sh
+
+.PHONY: up down plan kube security cleanup

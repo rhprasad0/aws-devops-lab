@@ -22,6 +22,13 @@ variable "ttl_hours" {
   default     = "24"
 }
 
+# Argo CD configuration
+variable "enable_argocd" {
+  description = "Enable Argo CD installation"
+  type        = bool
+  default     = true
+}
+
 # Tailscale configuration
 variable "enable_tailscale" {
   description = "Enable Tailscale gateway instance"

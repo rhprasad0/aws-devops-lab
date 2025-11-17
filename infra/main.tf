@@ -203,6 +203,8 @@ module "eks" {
 
 # Argo CD Installation
 resource "kubernetes_namespace" "argocd" {
+  count = var.enable_argocd ? 1 : 0
+  
   metadata {
     name = "argocd"
     labels = {
@@ -213,10 +215,12 @@ resource "kubernetes_namespace" "argocd" {
 }
 
 resource "helm_release" "argocd" {
+  count = var.enable_argocd ? 1 : 0
+  
   name       = "argocd"
   repository = "https://argoproj.github.io/argo-helm"
   chart      = "argo-cd"
-  namespace  = kubernetes_namespace.argocd.metadata[0].name
+  namespace  = kubernetes_namespace.argocd[0].metadata[0].name
   version    = "7.6.12"  # Stable version
 
   values = [
@@ -228,6 +232,8 @@ resource "helm_release" "argocd" {
 
 # Argo CD Project for sample apps (security boundary)
 resource "kubernetes_manifest" "sample_apps_project" {
+  count = var.enable_argocd ? 1 : 0
+  
   manifest = {
     apiVersion = "argoproj.io/v1alpha1"
     kind       = "AppProject"
@@ -279,6 +285,8 @@ resource "kubernetes_manifest" "sample_apps_project" {
 
 # Sample App Application (now using restricted project)
 resource "kubernetes_manifest" "sample_app_application" {
+  count = var.enable_argocd ? 1 : 0
+  
   manifest = {
     apiVersion = "argoproj.io/v1alpha1"
     kind       = "Application"
