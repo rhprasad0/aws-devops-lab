@@ -229,6 +229,12 @@ resource "aws_iam_role_policy_attachment" "aws_load_balancer_controller" {
 # This replaces the ServiceAccount annotation approach (IRSA).
 # Pod Identity Association directly links a ServiceAccount to an IAM role.
 resource "aws_eks_pod_identity_association" "aws_load_balancer_controller" {
+  depends_on = [
+    module.eks.aws_eks_cluster,
+    kubernetes_service_account.aws_load_balancer_controller,
+    aws_iam_role_policy_attachment.aws_load_balancer_controller
+  ]
+  
   cluster_name    = module.eks.cluster_name
   namespace       = "kube-system"
   service_account = "aws-load-balancer-controller"

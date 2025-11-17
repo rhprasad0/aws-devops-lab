@@ -351,57 +351,76 @@ By following this guide, agents help the user:
 
 **Remember:** This is a 16-20 week learning journey, not a sprint. Respect the timeline, explain deeply, and prioritize understanding over completion speed.
 
-## 13. Tooling Rules — Amazon Q + Context7 (Required)
+## 13. Available MCP Tools
 
-### Intent
-Keep Terraform **current and correct** by consulting Context7 before generating or modifying code.
+### MCP Server Overview
+This lab environment includes specialized Model Context Protocol (MCP) servers that provide enhanced capabilities for AWS and Kubernetes operations.
 
-### Required Workflow (enforced)
-1) **Context7 preflight (mandatory)**
-   - Query Context7 for:
-     - Provider major/minor version(s) in use
-     - Exact schema for each resource/data source (required/optional args, nested blocks)
-     - Deprecations/renames since prior majors (e.g., v5→v6)
-   - If Context7 returns anything that differs from cached patterns, **prefer Context7**.
+### Available MCP Tools
 
-2) **Plan the change**
-   - Propose the smallest diff aligned to our repo layout (see §2 Repository Structure).
-   - Include a 2–4 bullet “Changes vs older pattern” note.
+#### **1. AWS Terraform MCP Server** (`awslabs.terraform-mcp-server`)
+- **Purpose**: Terraform operations and validation
+- **Key Functions**:
+  - `ExecuteTerraformCommand`: Run terraform init, plan, apply, destroy
+  - `RunCheckovScan`: Security scanning of Terraform code
+  - `SearchAwsProviderDocs`: AWS provider documentation lookup
+  - `SearchUserProvidedModule`: Terraform module analysis
+- **Use Cases**: Infrastructure deployment, security validation, provider documentation
 
-3) **Generate output**
-   - Produce minimal, runnable Terraform targeting **`infra/*.tf` only** (no recursion).
-   - Add inline comments explaining non-obvious settings (see §1 Philosophy).
-   - Include cost notes per §5 (control plane, nodes, ALB, NAT, etc.).
+#### **2. EKS MCP Server** (`awslabs.eks-mcp-server`)
+- **Purpose**: EKS cluster management and Kubernetes operations
+- **Key Functions**:
+  - `manage_eks_stacks`: CloudFormation-based EKS cluster lifecycle
+  - `list_k8s_resources`: List pods, services, deployments
+  - `manage_k8s_resource`: CRUD operations on K8s resources
+  - `apply_yaml`: Deploy Kubernetes manifests
+  - `get_pod_logs`: Retrieve container logs
+  - `get_cloudwatch_metrics`: EKS Container Insights metrics
+- **Use Cases**: Cluster management, workload deployment, troubleshooting
 
-4) **Verify & clean up**
-   - Include quick verification commands.
-   - Remind about `make down` and leaked-resource checks by tags.
+#### **3. AWS API MCP Server** (`awslabs.aws-api-mcp-server`)
+- **Purpose**: Direct AWS CLI operations
+- **Key Functions**:
+  - `call_aws`: Execute AWS CLI commands
+  - `suggest_aws_commands`: Get command suggestions for tasks
+  - `use_aws`: Make direct AWS API calls
+- **Use Cases**: Resource queries, AWS service operations, debugging
 
-### Guardrails
-- Do **not** read or cite caches under `.terraform/` or any hidden directories.
-- Stay within the **learning week** flow (see §8 and §11). Ask which week if unclear.
-- Keep IAM least-privilege and IRSA-first (see §7).
+#### **4. AWS Knowledge MCP Server** (`aws-knowledge-mcp-server`)
+- **Purpose**: AWS documentation and regional information
+- **Key Functions**:
+  - `aws___search_documentation`: Search AWS docs
+  - `aws___read_documentation`: Read specific AWS doc pages
+  - `aws___get_regional_availability`: Check service availability by region
+  - `aws___list_regions`: Get all AWS regions
+- **Use Cases**: Documentation lookup, service availability checks, best practices
 
-### Output Format (exact)
-- **Header bullets**:
-  - Provider/resource versions (from Context7)
-  - Key diffs vs older patterns
-  - Cost impact (very short)
-- **Code block**: final Terraform
-- **Post-code**: verification steps + cleanup reminder
+### Required Workflow
+1) **Choose appropriate MCP tool** based on task type
+2) **Plan minimal changes** aligned to repo structure
+3) **Generate code** with inline comments and cost estimates
+4) **Include verification** steps and cleanup reminders
 
-### Quick Chat Snippets (copy/paste)
-- “Use Context7 to fetch the schema for `aws_iam_role` (current provider). Show diffs vs v5, then write the minimal Terraform for `infra/iam.tf`.”
-- “Validate `aws_lb_listener` args with Context7, then generate code. List any deprecated arguments we should avoid.”
-- “Before writing, confirm provider constraints for this repo and suggest updates to `versions.tf` if needed.”
+### Tool Selection Guidelines
+- **Infrastructure changes**: Use Terraform MCP for validation and deployment
+- **EKS operations**: Use EKS MCP for cluster and workload management
+- **AWS resource queries**: Use AWS API MCP for direct operations
+- **Documentation/research**: Use AWS Knowledge MCP for information lookup
+
+### Example Usage Patterns
+- "Use Terraform MCP to validate and apply infrastructure changes"
+- "Use EKS MCP to deploy sample application and check pod status"
+- "Use AWS API MCP to verify security group configurations"
+- "Use AWS Knowledge MCP to find current IAM policy recommendations"
+
 ---
 
-## 7. DevSecOps & Security Expectations
+## 14. DevSecOps & Security Expectations
 
 Security is a first-class concern in this lab, not an afterthought. Agents MUST:
 
 - Prefer least-privilege IAM and IRSA-based pod access instead of broad instance profiles or wildcard `"*"` policies.
-- Assume AWS Security Hub, GuardDuty, and Config are enabled in the lab account and avoid suggesting that they be disabled to “reduce noise.”
+- Assume AWS Security Hub, GuardDuty, and Config are enabled in the lab account and avoid suggesting that they be disabled to "reduce noise."
 - Default to HTTPS for any internet-facing service and call out when TLS, cert-manager, or ALB listener configuration needs to be tightened.
 - Use AWS Secrets Manager + External Secrets Operator (or equivalent) for sensitive data instead of putting credentials into Terraform, Helm values, or raw manifests.
 - Avoid introducing plaintext Kubernetes `Secret` manifests with hard-coded usernames/passwords unless explicitly asked for a throwaway demo.
@@ -409,39 +428,15 @@ Security is a first-class concern in this lab, not an afterthought. Agents MUST:
 
 When generating code or plans, always include at least one short note explaining the security trade-offs of the proposed approach.
 
-### Security-Focused Prompt Snippets
-
 These example prompts are encouraged when using agents interactively:
 
-- “Using Context7, check the current recommended IAM policy for the AWS Load Balancer Controller and generate the least-privilege version for this lab.”
-- “Before writing Terraform, verify with Context7 how to scope Route 53 permissions to a single hosted zone ARN and avoid wildcards.”
-- “Validate that our new CI/CD job runs image scanning (e.g., Trivy) and fail the pipeline on critical vulnerabilities; show the Terraform and GitHub Actions changes.”
-- “Given the existing Kyverno policies, propose one or two additional rules that enforce non-root containers and basic label hygiene, starting in audit mode.”
+- "Using AWS Knowledge MCP, check the current recommended IAM policy for the AWS Load Balancer Controller and generate the least-privilege version for this lab."
+- "Before writing Terraform, verify with AWS Knowledge MCP how to scope Route 53 permissions to a single hosted zone ARN and avoid wildcards."
+- "Validate that our new CI/CD job runs image scanning (e.g., Trivy) and fail the pipeline on critical vulnerabilities; show the Terraform and GitHub Actions changes."
+- "Given the existing Kyverno policies, propose one or two additional rules that enforce non-root containers and basic label hygiene, starting in audit mode."
 
 Agents should treat these DevSecOps expectations as hard constraints, not optional enhancements.
 
 ---
 
-## DevSecOps & Security Expectations
-
-Security is a first-class concern in this lab, not an afterthought. Agents MUST:
-
-- Prefer least-privilege IAM and IRSA-based pod access instead of broad instance profiles or wildcard `"*"` policies.
-- Assume AWS Security Hub, GuardDuty, and Config are enabled in the lab account and avoid suggesting that they be disabled to “reduce noise.”
-- Default to HTTPS for any internet-facing service and call out when TLS, cert-manager, or ALB listener configuration needs to be tightened.
-- Use AWS Secrets Manager + External Secrets Operator (or equivalent) for sensitive data instead of putting credentials into Terraform, Helm values, or raw manifests.
-- Avoid introducing plaintext Kubernetes `Secret` manifests with hard-coded usernames/passwords unless explicitly asked for a throwaway demo.
-- Highlight security implications when proposing changes (for example, widening security groups, opening public endpoints, or changing RBAC).
-
-When generating code or plans, always include at least one short note explaining the security trade-offs of the proposed approach.
-
-### Security-Focused Prompt Snippets
-
-These example prompts are encouraged when using agents interactively:
-
-- “Using Context7, check the current recommended IAM policy for the AWS Load Balancer Controller and generate the least-privilege version for this lab.”
-- “Before writing Terraform, verify with Context7 how to scope Route 53 permissions to a single hosted zone ARN and avoid wildcards.”
-- “Validate that our new CI/CD job runs image scanning (e.g., Trivy) and fail the pipeline on critical vulnerabilities; show the Terraform and GitHub Actions changes.”
-- “Given the existing Kyverno policies, propose one or two additional rules that enforce non-root containers and basic label hygiene, starting in audit mode.”
-
-Agents should treat these DevSecOps expectations as hard constraints, not optional enhancements.
+**Remember:** This is a 16-20 week learning journey, not a sprint. Respect the timeline, explain deeply, and prioritize understanding over completion speed.

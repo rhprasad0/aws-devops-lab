@@ -16,6 +16,8 @@
 
 # Create the ServiceAccount in kube-system namespace
 resource "kubernetes_service_account" "aws_load_balancer_controller" {
+  depends_on = [module.eks.aws_eks_cluster]
+  
   metadata {
     name      = "aws-load-balancer-controller"
     namespace = "kube-system"

@@ -2,16 +2,24 @@ ENV ?= dev
 REGION ?= us-east-1
 
 up:
+	@echo "🚀 Starting EKS lab deployment..."
 	cd infra && terraform init
-	cd infra && terraform apply -target=module.vpc -auto-approve
-	cd infra && terraform apply -target=module.eks.aws_eks_cluster.this -auto-approve
+	@echo "🏗️  Deploying infrastructure (this takes ~15 minutes)..."
 	cd infra && terraform apply -auto-approve
+	@echo "⚙️  Configuring kubectl..."
 	aws eks update-kubeconfig --name $(ENV)-eks --region $(REGION)
+	@echo "✅ Verifying cluster nodes..."
 	kubectl get nodes
+	@echo "🎯 Deploying Argo CD applications..."
+	cd infra && terraform apply -var="enable_argocd_apps=true" -auto-approve
+	@echo "🎉 Deployment complete!"
 
 down:
-	./scripts/cleanup-aws-resources.sh
-	cd infra && TF_VAR_enable_argocd=false terraform destroy -auto-approve
+	@echo "🧹 Cleaning up AWS resources..."
+	@$(MAKE) cleanup-check
+	@echo "💥 Destroying Terraform infrastructure..."
+	cd infra && terraform destroy -auto-approve
+	@echo "✅ Cleanup complete!"
 
 plan:
 	cd infra && terraform plan
@@ -19,10 +27,30 @@ plan:
 kube:
 	aws eks update-kubeconfig --name $(ENV)-eks --region $(REGION)
 
+# Verify security baseline services using AWS CLI
 security:
-	./scripts/verify-security.sh
+	@echo "🔍 Verifying Security Baseline Services..."
+	@echo "📡 Checking GuardDuty..."
+	@aws guardduty list-detectors --query 'DetectorIds[0]' --output text --region $(REGION) | grep -v None || echo "❌ GuardDuty not enabled"
+	@echo "📋 Checking Config..."
+	@aws configservice describe-configuration-recorders --query 'ConfigurationRecorders[0].name' --output text --region $(REGION) 2>/dev/null | grep -v None || echo "❌ Config not enabled"
+	@echo "🛡️  Checking Security Hub..."
+	@aws securityhub describe-hub --region $(REGION) --query 'HubArn' --output text 2>/dev/null | grep -v None || echo "❌ Security Hub not enabled"
 
-cleanup:
-	./scripts/cleanup-aws-resources.sh
+# Check for leaked AWS resources by project tags
+cleanup-check:
+	@echo "🔍 Checking for leaked resources with project tag..."
+	@echo "Load Balancers:"
+	@aws elbv2 describe-load-balancers --region $(REGION) --query "LoadBalancers[?contains(keys(Tags), 'project') && Tags.project=='eks-ephemeral-lab'].[LoadBalancerName,State.Code]" --output table 2>/dev/null || echo "None found"
+	@echo "Security Groups:"
+	@aws ec2 describe-security-groups --region $(REGION) --query "SecurityGroups[?contains(keys(Tags), 'project') && Tags.project=='eks-ephemeral-lab'].[GroupName,GroupId]" --output table 2>/dev/null || echo "None found"
 
-.PHONY: up down plan kube security cleanup
+checkov:
+	@echo "🔍 Running Checkov security scan..."
+	cd infra && checkov -d . --framework terraform --compact
+
+checkov-detailed:
+	@echo "🔍 Running detailed Checkov security scan..."
+	cd infra && checkov -d . --framework terraform
+
+.PHONY: up down plan kube security cleanup-check checkov checkov-detailed

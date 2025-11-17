@@ -29,6 +29,13 @@ variable "enable_argocd" {
   default     = true
 }
 
+# Argo CD applications (apply after cluster is ready)
+variable "enable_argocd_apps" {
+  description = "Enable Argo CD applications (requires cluster to be ready)"
+  type        = bool
+  default     = false
+}
+
 # Tailscale configuration
 variable "enable_tailscale" {
   description = "Enable Tailscale gateway instance"

@@ -68,7 +68,8 @@ provider "helm" {
 
 # VPC
 module "vpc" {
-  source = "terraform-aws-modules/vpc/aws"
+  source  = "terraform-aws-modules/vpc/aws"
+  version = "5.13.0"
   
   name = "${var.env}-vpc"
   cidr = "10.0.0.0/16"
@@ -96,30 +97,16 @@ module "vpc" {
 # EKS Cluster
 module "eks" {
   source  = "terraform-aws-modules/eks/aws"
-  version = "~> 21.0"
+  version = "21.0.0"
   
   name               = "${var.env}-eks"
   kubernetes_version = "1.31"
   
-  # Grant cluster creator admin permissions
+  # Grant cluster creator admin permissions (automatically creates access entry for current user)
   enable_cluster_creator_admin_permissions = true
   
-  # Add your IAM user as cluster admin
+  # Additional access entries (if needed for other users/roles)
   access_entries = {
-    eks-lab-admin = {
-      kubernetes_groups = []
-      principal_arn     = "arn:aws:iam::407645373626:user/eks-lab-admin"
-      
-      policy_associations = {
-        admin = {
-          policy_arn = "arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy"
-          access_scope = {
-            type = "cluster"
-          }
-        }
-      }
-    }
-    
     # Temporarily disabled - enable when Tailscale is deployed
     # tailscale-role = {
     #   kubernetes_groups = []
@@ -178,9 +165,16 @@ module "eks" {
       # AL2 is more stable for EKS bootstrap process
       ami_type       = "AL2_x86_64"
       instance_types = ["t3.medium"]
+      
+      # Explicitly set Kubernetes version to match cluster
+      kubernetes_version = "1.31"
+      
       min_size       = 2
       max_size       = 3
       desired_size   = 2
+      
+      # Let AWS choose the latest compatible AMI for EKS 1.31
+      # ami_release_version = "1.31.2-20241112"
       
       disk_size = 20
       
@@ -205,6 +199,8 @@ module "eks" {
 resource "kubernetes_namespace" "argocd" {
   count = var.enable_argocd ? 1 : 0
   
+  depends_on = [module.eks.aws_eks_cluster]
+  
   metadata {
     name = "argocd"
     labels = {
@@ -217,6 +213,12 @@ resource "kubernetes_namespace" "argocd" {
 resource "helm_release" "argocd" {
   count = var.enable_argocd ? 1 : 0
   
+  depends_on = [
+    module.eks.aws_eks_cluster,
+    kubernetes_namespace.argocd,
+    module.eks
+  ]
+  
   name       = "argocd"
   repository = "https://argoproj.github.io/argo-helm"
   chart      = "argo-cd"
@@ -226,13 +228,13 @@ resource "helm_release" "argocd" {
   values = [
     file("../k8s/argocd/values.yaml")
   ]
-
-  depends_on = [kubernetes_namespace.argocd]
 }
 
 # Argo CD Project for sample apps (security boundary)
 resource "kubernetes_manifest" "sample_apps_project" {
-  count = var.enable_argocd ? 1 : 0
+  count = var.enable_argocd_apps ? 1 : 0
+  
+  depends_on = [helm_release.argocd]
   
   manifest = {
     apiVersion = "argoproj.io/v1alpha1"
@@ -279,13 +281,13 @@ resource "kubernetes_manifest" "sample_apps_project" {
       ]
     }
   }
-
-  depends_on = [helm_release.argocd]
 }
 
 # Sample App Application (now using restricted project)
 resource "kubernetes_manifest" "sample_app_application" {
-  count = var.enable_argocd ? 1 : 0
+  count = var.enable_argocd_apps ? 1 : 0
+  
+  depends_on = [kubernetes_manifest.sample_apps_project]
   
   manifest = {
     apiVersion = "argoproj.io/v1alpha1"
@@ -316,9 +318,4 @@ resource "kubernetes_manifest" "sample_app_application" {
       }
     }
   }
-
-  depends_on = [
-    helm_release.argocd,
-    kubernetes_manifest.sample_apps_project
-  ]
 }
