@@ -3,6 +3,9 @@
 # This creates a Kubernetes Ingress that triggers the AWS Load Balancer Controller
 # to provision an Application Load Balancer (ALB) with our custom security group.
 #
+# Week 5 Update: Added hostname for ExternalDNS automatic Route 53 record creation
+# ExternalDNS watches this Ingress and creates A record: app.dev.ryans-lab.click -> ALB
+#
 # Key security improvement: The ALB uses our custom security group that restricts
 # outbound traffic to VPC only (10.0.0.0/16), following least privilege principles.
 
@@ -27,7 +30,7 @@ resource "kubernetes_ingress_v1" "sample_app" {
       "alb.ingress.kubernetes.io/unhealthy-threshold-count"    = "3"
       
       # Resource Tagging
-      "alb.ingress.kubernetes.io/tags" = "Environment=dev,ManagedBy=aws-load-balancer-controller,Week=4"
+      "alb.ingress.kubernetes.io/tags" = "Environment=dev,ManagedBy=aws-load-balancer-controller,Week=5"
     }
     labels = {
       app = "sample-app"
@@ -38,6 +41,11 @@ resource "kubernetes_ingress_v1" "sample_app" {
     ingress_class_name = "alb"  # Use AWS Load Balancer Controller
     
     rule {
+      # Week 5 Task 4: Add hostname for ExternalDNS
+      # ExternalDNS automatically detects this hostname and creates Route 53 A record
+      # pointing app.dev.ryans-lab.click to the ALB's DNS name
+      host = "app.dev.ryans-lab.click"
+      
       http {
         path {
           path      = "/"           # Match all paths

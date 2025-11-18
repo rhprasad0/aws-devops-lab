@@ -382,7 +382,7 @@ eks-ephemeral-lab/
 
 4. Update sample app Ingress:
    - Add hostname: `app.dev.eks-lab.yourdomain.com`
-   - Add annotation for ExternalDNS
+   - **Note:** No ExternalDNS annotation needed - ExternalDNS automatically watches Ingress resources and uses the `host` field
 
 5. Test:
    - Apply manifest
@@ -394,6 +394,7 @@ eks-ephemeral-lab/
 - How ExternalDNS watches K8s resources
 - DNS propagation time
 - IAM least privilege for single hosted zone
+- **ExternalDNS Annotations:** The `external-dns.alpha.kubernetes.io/hostname` annotation is optional for Ingress resources. ExternalDNS automatically reads the `host` field from Ingress specs. Annotations are primarily used for Services or when overriding default behavior.
 
 
 **Security Focus:**
