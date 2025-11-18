@@ -42,141 +42,286 @@ data "aws_iam_policy_document" "aws_load_balancer_controller_assume_role" {
 # PERMISSION POLICY - What can this role do?
 # ============================================================================
 
-# This policy defines the AWS permissions needed by the Load Balancer Controller.
-# Based on the official AWS policy but with explanations for each permission group.
+# Official AWS Load Balancer Controller IAM policy (v2.14.1)
+# Source: https://raw.githubusercontent.com/kubernetes-sigs/aws-load-balancer-controller/v2.14.1/docs/install/iam_policy.json
+# This ensures least-privilege permissions with proper resource constraints and security conditions
 data "aws_iam_policy_document" "aws_load_balancer_controller_policy" {
-  
-  # EC2 Permissions: Network discovery and ENI management
-  # The controller needs to understand your VPC topology to place ALBs correctly
+  # IAM: Service-linked role creation (restricted to ELB service only)
   statement {
-    sid    = "EC2NetworkDiscovery"
     effect = "Allow"
-    actions = [
-      "ec2:DescribeVpcs",                # Find which VPC to create ALB in
-      "ec2:DescribeSubnets",             # Choose subnets for ALB placement
-      "ec2:DescribeSecurityGroups",      # Manage ALB security groups
-      "ec2:GetSecurityGroupsForVpc",     # List security groups in VPC
-      "ec2:DescribeAvailabilityZones",   # Multi-AZ ALB placement
-      "ec2:DescribeInternetGateways",    # For internet-facing ALBs
-      "ec2:DescribeInstances",           # Target discovery (though we use IP mode)
-      "ec2:DescribeTags",                # Resource filtering and management
-      "ec2:CreateTags",                  # Tag resources for organization
-      "ec2:DescribeAccountAttributes",   # Account limits and features
-      "ec2:DescribeAddresses",           # Elastic IP management
-      "ec2:GetCoipCidrAuthorizationAssociation",  # For Outposts support
-      "ec2:DescribeCoipCidrBlocks"       # For Outposts support
-    ]
+    actions = ["iam:CreateServiceLinkedRole"]
     resources = ["*"]
+    condition {
+      test     = "StringEquals"
+      variable = "iam:AWSServiceName"
+      values   = ["elasticloadbalancing.amazonaws.com"]
+    }
   }
-  
-  # Network Interface Management: Required for IP target mode
-  # In IP target mode, ALB creates ENIs to reach pod IPs directly (bypasses NodePort)
+
+  # EC2 and ELB: Read-only discovery operations
   statement {
-    sid    = "EC2NetworkInterfaceManagement"
     effect = "Allow"
     actions = [
-      "ec2:CreateNetworkInterface",           # Create ENIs for ALB
-      "ec2:DeleteNetworkInterface",           # Clean up ENIs when ALB deleted
-      "ec2:DescribeNetworkInterfaces",        # Monitor ENI status
-      "ec2:ModifyNetworkInterfaceAttribute",  # Configure ENI settings
-      "ec2:CreateNetworkInterfacePermission", # Grant permissions to ENIs
-      "ec2:DeleteNetworkInterfacePermission", # Revoke ENI permissions
-      "ec2:DescribeNetworkInterfacePermissions"
-    ]
-    resources = ["*"]
-  }
-  
-  # Security Group Management: Required for ALB security groups
-  statement {
-    sid    = "EC2SecurityGroupManagement"
-    effect = "Allow"
-    actions = [
-      "ec2:CreateSecurityGroup",              # Create security groups for ALB
-      "ec2:DeleteSecurityGroup",              # Clean up security groups
-      "ec2:AuthorizeSecurityGroupIngress",    # Add inbound rules
-      "ec2:AuthorizeSecurityGroupEgress",     # Add outbound rules  
-      "ec2:RevokeSecurityGroupIngress",       # Remove inbound rules
-      "ec2:RevokeSecurityGroupEgress"         # Remove outbound rules
-    ]
-    resources = ["*"]
-  }
-  
-  # Load Balancer Management: Core ALB operations
-  statement {
-    sid    = "ELBManagement"
-    effect = "Allow"
-    actions = [
-      # Discovery operations
-      "elasticloadbalancing:DescribeAccountLimits",
-      "elasticloadbalancing:DescribeClientVpnConnections", 
+      "ec2:DescribeAccountAttributes",
+      "ec2:DescribeAddresses",
+      "ec2:DescribeAvailabilityZones",
+      "ec2:DescribeInternetGateways",
+      "ec2:DescribeVpcs",
+      "ec2:DescribeVpcPeeringConnections",
+      "ec2:DescribeSubnets",
+      "ec2:DescribeSecurityGroups",
+      "ec2:DescribeInstances",
+      "ec2:DescribeNetworkInterfaces",
+      "ec2:DescribeTags",
+      "ec2:GetCoipPoolUsage",
+      "ec2:DescribeCoipPools",
+      "ec2:GetSecurityGroupsForVpc",
+      "ec2:DescribeIpamPools",
+      "ec2:DescribeRouteTables",
       "elasticloadbalancing:DescribeLoadBalancers",
-      "elasticloadbalancing:DescribeLoadBalancerAttributes", 
+      "elasticloadbalancing:DescribeLoadBalancerAttributes",
       "elasticloadbalancing:DescribeListeners",
+      "elasticloadbalancing:DescribeListenerCertificates",
+      "elasticloadbalancing:DescribeSSLPolicies",
       "elasticloadbalancing:DescribeRules",
       "elasticloadbalancing:DescribeTargetGroups",
       "elasticloadbalancing:DescribeTargetGroupAttributes",
       "elasticloadbalancing:DescribeTargetHealth",
       "elasticloadbalancing:DescribeTags",
-      
-      # ALB lifecycle (create from Ingress, delete when Ingress removed)
+      "elasticloadbalancing:DescribeTrustStores",
+      "elasticloadbalancing:DescribeListenerAttributes",
+      "elasticloadbalancing:DescribeCapacityReservation"
+    ]
+    resources = ["*"]
+  }
+
+  # Integration services: ACM, WAF, Shield, Cognito
+  statement {
+    effect = "Allow"
+    actions = [
+      "cognito-idp:DescribeUserPoolClient",
+      "acm:ListCertificates",
+      "acm:DescribeCertificate",
+      "iam:ListServerCertificates",
+      "iam:GetServerCertificate",
+      "waf-regional:GetWebACL",
+      "waf-regional:GetWebACLForResource",
+      "waf-regional:AssociateWebACL",
+      "waf-regional:DisassociateWebACL",
+      "wafv2:GetWebACL",
+      "wafv2:GetWebACLForResource",
+      "wafv2:AssociateWebACL",
+      "wafv2:DisassociateWebACL",
+      "shield:GetSubscriptionState",
+      "shield:DescribeProtection",
+      "shield:CreateProtection",
+      "shield:DeleteProtection"
+    ]
+    resources = ["*"]
+  }
+
+  # EC2: Security group ingress/egress (no conditions - needed for flexibility)
+  statement {
+    effect = "Allow"
+    actions = [
+      "ec2:AuthorizeSecurityGroupIngress",
+      "ec2:RevokeSecurityGroupIngress"
+    ]
+    resources = ["*"]
+  }
+
+  # EC2: Security group creation (no conditions)
+  statement {
+    effect = "Allow"
+    actions = ["ec2:CreateSecurityGroup"]
+    resources = ["*"]
+  }
+
+  # EC2: Tag security groups during creation (requires cluster tag)
+  statement {
+    effect = "Allow"
+    actions = ["ec2:CreateTags"]
+    resources = ["arn:aws:ec2:*:*:security-group/*"]
+    condition {
+      test     = "StringEquals"
+      variable = "ec2:CreateAction"
+      values   = ["CreateSecurityGroup"]
+    }
+    condition {
+      test     = "Null"
+      variable = "aws:RequestTag/elbv2.k8s.aws/cluster"
+      values   = ["false"]
+    }
+  }
+
+  # EC2: Tag/untag existing security groups (only controller-managed)
+  statement {
+    effect = "Allow"
+    actions = [
+      "ec2:CreateTags",
+      "ec2:DeleteTags"
+    ]
+    resources = ["arn:aws:ec2:*:*:security-group/*"]
+    condition {
+      test     = "Null"
+      variable = "aws:RequestTag/elbv2.k8s.aws/cluster"
+      values   = ["true"]
+    }
+    condition {
+      test     = "Null"
+      variable = "aws:ResourceTag/elbv2.k8s.aws/cluster"
+      values   = ["false"]
+    }
+  }
+
+  # EC2: Modify/delete security groups (only controller-managed)
+  statement {
+    effect = "Allow"
+    actions = [
+      "ec2:AuthorizeSecurityGroupIngress",
+      "ec2:RevokeSecurityGroupIngress",
+      "ec2:DeleteSecurityGroup"
+    ]
+    resources = ["*"]
+    condition {
+      test     = "Null"
+      variable = "aws:ResourceTag/elbv2.k8s.aws/cluster"
+      values   = ["false"]
+    }
+  }
+
+  # ELB: Create load balancers and target groups (requires cluster tag)
+  statement {
+    effect = "Allow"
+    actions = [
       "elasticloadbalancing:CreateLoadBalancer",
-      "elasticloadbalancing:UpdateLoadBalancerAttribute",  # Missing: was ModifyLoadBalancerAttributes
-      "elasticloadbalancing:DeleteLoadBalancer",
-      
-      # Listener management (HTTP/HTTPS endpoints on ALB)
+      "elasticloadbalancing:CreateTargetGroup"
+    ]
+    resources = ["*"]
+    condition {
+      test     = "Null"
+      variable = "aws:RequestTag/elbv2.k8s.aws/cluster"
+      values   = ["false"]
+    }
+  }
+
+  # ELB: Listener and rule management (no conditions)
+  statement {
+    effect = "Allow"
+    actions = [
       "elasticloadbalancing:CreateListener",
-      "elasticloadbalancing:UpdateListener",              # Missing: was ModifyListener
       "elasticloadbalancing:DeleteListener",
-      
-      # Rule management (path-based routing, host-based routing)
       "elasticloadbalancing:CreateRule",
-      "elasticloadbalancing:UpdateRule",                  # Missing: was ModifyRule
       "elasticloadbalancing:DeleteRule"
     ]
     resources = ["*"]
   }
-  
-  # Target Group Management: Where ALB sends traffic
+
+  # ELB: Tag load balancers and target groups (only controller-managed)
   statement {
-    sid    = "ELBTargetGroupManagement"
     effect = "Allow"
     actions = [
-      "elasticloadbalancing:CreateTargetGroup",           # Create target group for service
-      "elasticloadbalancing:DeleteTargetGroup",           # Clean up when service deleted
-      "elasticloadbalancing:ModifyTargetGroupAttribute",  # Health check configuration (official name)
-      "elasticloadbalancing:RegisterTargets",             # Add healthy pod IPs
-      "elasticloadbalancing:DeregisterTargets"            # Remove unhealthy/deleted pod IPs
+      "elasticloadbalancing:AddTags",
+      "elasticloadbalancing:RemoveTags"
     ]
-    resources = ["*"]
+    resources = [
+      "arn:aws:elasticloadbalancing:*:*:targetgroup/*/*",
+      "arn:aws:elasticloadbalancing:*:*:loadbalancer/net/*/*",
+      "arn:aws:elasticloadbalancing:*:*:loadbalancer/app/*/*"
+    ]
+    condition {
+      test     = "Null"
+      variable = "aws:RequestTag/elbv2.k8s.aws/cluster"
+      values   = ["true"]
+    }
+    condition {
+      test     = "Null"
+      variable = "aws:ResourceTag/elbv2.k8s.aws/cluster"
+      values   = ["false"]
+    }
   }
-  
-  # Tagging: Resource management and cost allocation
+
+  # ELB: Tag listeners and rules (no conditions)
   statement {
-    sid    = "ELBTagging"
     effect = "Allow"
     actions = [
-      "elasticloadbalancing:AddTags",     # Tag ALBs for organization
-      "elasticloadbalancing:RemoveTags"   # Clean up tags
+      "elasticloadbalancing:AddTags",
+      "elasticloadbalancing:RemoveTags"
     ]
-    resources = ["*"]
+    resources = [
+      "arn:aws:elasticloadbalancing:*:*:listener/net/*/*/*",
+      "arn:aws:elasticloadbalancing:*:*:listener/app/*/*/*",
+      "arn:aws:elasticloadbalancing:*:*:listener-rule/net/*/*/*",
+      "arn:aws:elasticloadbalancing:*:*:listener-rule/app/*/*/*"
+    ]
   }
-  
-  # IAM: Service-linked role creation (one-time per AWS account)
+
+  # ELB: Modify load balancers and target groups (only controller-managed)
   statement {
-    sid    = "IAMServiceLinkedRole"
     effect = "Allow"
     actions = [
-      "iam:CreateServiceLinkedRole",  # Create ELB service-linked role if needed
-      "iam:GetRole"                   # Verify role exists
+      "elasticloadbalancing:ModifyLoadBalancerAttributes",
+      "elasticloadbalancing:SetIpAddressType",
+      "elasticloadbalancing:SetSecurityGroups",
+      "elasticloadbalancing:SetSubnets",
+      "elasticloadbalancing:DeleteLoadBalancer",
+      "elasticloadbalancing:ModifyTargetGroup",
+      "elasticloadbalancing:ModifyTargetGroupAttributes",
+      "elasticloadbalancing:DeleteTargetGroup",
+      "elasticloadbalancing:ModifyListenerAttributes",
+      "elasticloadbalancing:ModifyCapacityReservation",
+      "elasticloadbalancing:ModifyIpPools"
     ]
     resources = ["*"]
+    condition {
+      test     = "Null"
+      variable = "aws:ResourceTag/elbv2.k8s.aws/cluster"
+      values   = ["false"]
+    }
   }
-  
-  # Identity verification
+
+  # ELB: Tag during creation (requires cluster tag)
   statement {
-    sid       = "STSIdentity"
-    effect    = "Allow"
-    actions   = ["sts:GetCallerIdentity"]
+    effect = "Allow"
+    actions = ["elasticloadbalancing:AddTags"]
+    resources = [
+      "arn:aws:elasticloadbalancing:*:*:targetgroup/*/*",
+      "arn:aws:elasticloadbalancing:*:*:loadbalancer/net/*/*",
+      "arn:aws:elasticloadbalancing:*:*:loadbalancer/app/*/*"
+    ]
+    condition {
+      test     = "StringEquals"
+      variable = "elasticloadbalancing:CreateAction"
+      values   = ["CreateTargetGroup", "CreateLoadBalancer"]
+    }
+    condition {
+      test     = "Null"
+      variable = "aws:RequestTag/elbv2.k8s.aws/cluster"
+      values   = ["false"]
+    }
+  }
+
+  # ELB: Target registration (no conditions)
+  statement {
+    effect = "Allow"
+    actions = [
+      "elasticloadbalancing:RegisterTargets",
+      "elasticloadbalancing:DeregisterTargets"
+    ]
+    resources = ["arn:aws:elasticloadbalancing:*:*:targetgroup/*/*"]
+  }
+
+  # ELB: Listener and rule modifications (no conditions)
+  statement {
+    effect = "Allow"
+    actions = [
+      "elasticloadbalancing:SetWebAcl",
+      "elasticloadbalancing:ModifyListener",
+      "elasticloadbalancing:AddListenerCertificates",
+      "elasticloadbalancing:RemoveListenerCertificates",
+      "elasticloadbalancing:ModifyRule",
+      "elasticloadbalancing:SetRulePriorities"
+    ]
     resources = ["*"]
   }
 }
