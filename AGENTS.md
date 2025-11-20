@@ -73,7 +73,7 @@ eks-ephemeral-lab/
 │  └─ (optional: janitor helpers)
 ├─ Makefile               # make up / make down / utility targets
 ├─ .cost-budget           # Track actual spending vs budget
-├─ 16-20-WEEK-PLAN.md     # The detailed learning plan
+├─ README.md     # The detailed learning plan
 └─ AGENTS.md              # This file
 ```
 
@@ -395,6 +395,25 @@ This lab environment includes specialized Model Context Protocol (MCP) servers t
   - `aws___list_regions`: Get all AWS regions
 - **Use Cases**: Documentation lookup, service availability checks, best practices
 
+#### **5. AWS Documentation MCP Server** (`awslabs.aws-documentation-mcp-server`)
+- **Purpose**: Alternative AWS documentation access with enhanced features
+- **Key Functions**:
+  - `search_documentation`: Search AWS documentation
+  - `read_documentation`: Read AWS doc pages with markdown conversion
+  - `recommend`: Get content recommendations for related docs
+- **Use Cases**: Deep documentation research, finding related content, discovering new features
+
+#### **6. GitHub MCP Server** (`github`)
+- **Purpose**: GitHub repository and workflow management
+- **Key Functions**:
+  - `create_or_update_file`: Manage files in GitHub repos
+  - `create_branch`: Create new branches
+  - `list_commits`: View commit history
+  - `get_workflow_run`: Check GitHub Actions status
+  - `search_code`: Search across GitHub repositories
+  - `search_repositories`: Find GitHub projects
+- **Use Cases**: CI/CD pipeline management, repository operations, code search, workflow monitoring
+
 ### Required Workflow
 1) **Choose appropriate MCP tool** based on task type
 2) **Plan minimal changes** aligned to repo structure
@@ -405,13 +424,16 @@ This lab environment includes specialized Model Context Protocol (MCP) servers t
 - **Infrastructure changes**: Use Terraform MCP for validation and deployment
 - **EKS operations**: Use EKS MCP for cluster and workload management
 - **AWS resource queries**: Use AWS API MCP for direct operations
-- **Documentation/research**: Use AWS Knowledge MCP for information lookup
+- **Documentation/research**: Use AWS Knowledge or AWS Documentation MCP for information lookup
+- **GitHub operations**: Use GitHub MCP for repository management and CI/CD workflows
 
 ### Example Usage Patterns
 - "Use Terraform MCP to validate and apply infrastructure changes"
 - "Use EKS MCP to deploy sample application and check pod status"
 - "Use AWS API MCP to verify security group configurations"
 - "Use AWS Knowledge MCP to find current IAM policy recommendations"
+- "Use AWS Documentation MCP to read detailed service guides and get related content recommendations"
+- "Use GitHub MCP to create branches, manage CI/CD workflows, and search code across repositories"
 
 ---
 
