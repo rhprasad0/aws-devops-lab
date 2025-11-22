@@ -65,3 +65,9 @@ output "guestbook_pod_role_arn" {
   description = "IAM role ARN for guestbook pods (Pod Identity)"
   value       = var.enable_guestbook ? aws_iam_role.guestbook_pod[0].arn : null
 }
+
+# GitHub Actions outputs
+output "github_actions_role_arn" {
+  description = "IAM role ARN for GitHub Actions to push to ECR"
+  value       = aws_iam_role.github_actions_ecr.arn
+}
