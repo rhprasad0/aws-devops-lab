@@ -39,3 +39,29 @@ output "tailscale_subnet_router_ip" {
   description = "Tailscale subnet router private IP"
   value       = var.enable_tailscale ? aws_instance.tailscale[0].private_ip : null
 }
+
+# Agent2Agent Guestbook outputs
+output "guestbook_dynamodb_table_name" {
+  description = "Name of the guestbook DynamoDB table"
+  value       = var.enable_guestbook ? aws_dynamodb_table.guestbook_messages[0].name : null
+}
+
+output "guestbook_dynamodb_table_arn" {
+  description = "ARN of the guestbook DynamoDB table"
+  value       = var.enable_guestbook ? aws_dynamodb_table.guestbook_messages[0].arn : null
+}
+
+output "guestbook_secret_name" {
+  description = "Name of the guestbook Secrets Manager secret"
+  value       = var.enable_guestbook ? aws_secretsmanager_secret.guestbook_api_keys[0].name : null
+}
+
+output "guestbook_secret_arn" {
+  description = "ARN of the guestbook Secrets Manager secret"
+  value       = var.enable_guestbook ? aws_secretsmanager_secret.guestbook_api_keys[0].arn : null
+}
+
+output "guestbook_pod_role_arn" {
+  description = "IAM role ARN for guestbook pods (Pod Identity)"
+  value       = var.enable_guestbook ? aws_iam_role.guestbook_pod[0].arn : null
+}
