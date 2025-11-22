@@ -40,8 +40,8 @@ resource "aws_iam_role" "github_actions_ecr" {
             "token.actions.githubusercontent.com:aud" = "sts.amazonaws.com"
           }
           StringLike = {
-            # Replace with your GitHub username/org and repo name
-            "token.actions.githubusercontent.com:sub" = "repo:rhprasad0/aws-devops-lab:*"
+            # Allow both repos: infra repo and guestbook app repo
+            "token.actions.githubusercontent.com:sub" = "repo:rhprasad0/agent2agent-guestbook:*"
           }
         }
       }
