@@ -79,7 +79,7 @@ module "vpc" {
   private_subnets = ["10.0.11.0/24", "10.0.12.0/24"]
   
   enable_nat_gateway     = true
-  one_nat_gateway_per_az = true  # One NAT per AZ for HA (+$32/month vs single NAT)
+  single_nat_gateway     = true  # Single NAT shared across AZs (saves ~$32/month, reduces HA)
   enable_vpn_gateway     = false
   
   # EKS subnet tags
