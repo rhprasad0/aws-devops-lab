@@ -34,6 +34,11 @@ spec:
     - group: networking.k8s.io
       kind: Ingress
   
+  # Cluster-scoped resources that are explicitly allowed
+  clusterResourceWhitelist:
+    - group: ""
+      kind: Namespace
+  
   # Cluster-scoped resources that are explicitly denied
   clusterResourceBlacklist:
     - group: rbac.authorization.k8s.io
