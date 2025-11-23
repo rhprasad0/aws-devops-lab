@@ -2,7 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: guestbook
-  namespace: default
+  namespace: guestbook
   labels:
     app: guestbook
     version: v1

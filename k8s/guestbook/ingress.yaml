@@ -2,7 +2,7 @@ apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: guestbook
-  namespace: default
+  namespace: guestbook
   annotations:
     # AWS Load Balancer Controller annotations
     kubernetes.io/ingress.class: alb
