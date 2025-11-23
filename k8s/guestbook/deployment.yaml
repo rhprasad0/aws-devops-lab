@@ -2,7 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: guestbook
-  namespace: guestbook
+  namespace: default
   labels:
     app: guestbook
     version: v1
@@ -17,7 +17,7 @@ spec:
         app: guestbook
         version: v1
     spec:
-      serviceAccountName: guestbook
+      serviceAccountName: guestbook-sa
       securityContext:
         runAsNonRoot: true
         runAsUser: 1000

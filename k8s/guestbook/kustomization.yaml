@@ -1,7 +1,7 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
-namespace: guestbook
+namespace: default
 
 resources:
   - namespace.yaml
@@ -10,24 +10,24 @@ resources:
   - service.yaml
   - ingress.yaml
 
-# Image will be updated by CI/CD pipeline or manually
+# ECR image configuration
 images:
   - name: GUESTBOOK_IMAGE
-    newName: ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/eks-lab/guestbook
+    newName: 407645373626.dkr.ecr.us-east-1.amazonaws.com/eks-lab/guestbook
     newTag: latest
 
-# ConfigMap generator for environment-specific values
+# ConfigMap with actual AWS resource names from Terraform
 configMapGenerator:
   - name: guestbook-config
     literals:
       - AWS_REGION=us-east-1
-      - DYNAMODB_TABLE_NAME=dev-guestbook-messages
-      - API_KEYS_SECRET_NAME=dev-guestbook-api-keys
+      - DYNAMODB_TABLE_NAME=a2a-guestbook-messages
+      - API_KEYS_SECRET_NAME=a2a-guestbook/api-keys
       - RATE_LIMIT_PER_MINUTE=10
       - LOG_LEVEL=INFO
       - PORT=8000
 
-# Common labels applied to all resources
+# Common labels
 commonLabels:
   app.kubernetes.io/name: guestbook
   app.kubernetes.io/component: application

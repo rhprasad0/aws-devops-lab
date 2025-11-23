@@ -2,7 +2,7 @@ apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: guestbook
-  namespace: guestbook
+  namespace: default
   annotations:
     # AWS Load Balancer Controller annotations
     kubernetes.io/ingress.class: alb
@@ -19,7 +19,7 @@ metadata:
     # alb.ingress.kubernetes.io/certificate-arn: CERTIFICATE_ARN
 spec:
   rules:
-  - host: guestbook.dev.eks-lab.ryanprasad.com
+  - host: guestbook.dev.ryans-lab.click
     http:
       paths:
       - path: /
