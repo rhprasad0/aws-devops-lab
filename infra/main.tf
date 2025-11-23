@@ -167,7 +167,8 @@ resource "helm_release" "argocd" {
   depends_on = [
     module.eks.aws_eks_cluster,
     kubernetes_namespace.argocd,
-    module.eks
+    module.eks,
+    helm_release.aws_load_balancer_controller  # Wait for LB Controller to be fully ready
   ]
   
   name       = "argocd"
@@ -175,10 +176,20 @@ resource "helm_release" "argocd" {
   chart      = "argo-cd"
   namespace  = kubernetes_namespace.argocd[0].metadata[0].name
   version    = "7.6.12"  # Stable version
+  
+  # Wait for webhook to be fully operational before proceeding
+  wait          = true
+  wait_for_jobs = true
+  timeout       = 600  # 10 minutes timeout
 
   values = [
     file("../k8s/argocd/values.yaml")
   ]
+  
+  # Add small delay to ensure webhook is fully ready
+  provisioner "local-exec" {
+    command = "echo 'Waiting 30s for LB Controller webhook to stabilize...' && sleep 30"
+  }
 }
 
 # Argo CD Project for sample apps (security boundary)
