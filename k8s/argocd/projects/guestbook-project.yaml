@@ -1,0 +1,44 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: guestbook
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: guestbook-project
+spec:
+  description: "Project for the agent2agent guestbook application"
+  
+  # Source repositories that applications in this project can deploy from
+  sourceRepos:
+    - https://github.com/rhprasad0/aws-devops-lab
+  
+  # Destination clusters and namespaces
+  destinations:
+    - namespace: guestbook
+      server: https://kubernetes.default.svc
+  
+  # Namespace-scoped resources that can be deployed
+  namespaceResourceWhitelist:
+    - group: ""
+      kind: ConfigMap
+    - group: ""
+      kind: Secret
+    - group: ""
+      kind: Service
+    - group: ""
+      kind: ServiceAccount
+    - group: apps
+      kind: Deployment
+    - group: apps
+      kind: ReplicaSet
+    - group: networking.k8s.io
+      kind: Ingress
+  
+  # Cluster-scoped resources that are explicitly denied
+  clusterResourceBlacklist:
+    - group: ""
+      kind: Namespace
+    - group: rbac.authorization.k8s.io
+      kind: ClusterRole
+    - group: rbac.authorization.k8s.io
+      kind: ClusterRoleBinding

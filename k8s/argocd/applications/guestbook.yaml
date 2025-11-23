@@ -1,0 +1,29 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: guestbook
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: guestbook
+spec:
+  # Use the guestbook project for governance
+  project: guestbook
+  
+  # Source repository and path
+  source:
+    repoURL: https://github.com/rhprasad0/aws-devops-lab
+    targetRevision: week9  # Point to your working branch
+    path: k8s/guestbook
+  
+  # Destination cluster and namespace
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: guestbook
+  
+  # Sync policy - automated with prune and self-heal
+  syncPolicy:
+    automated:
+      prune: true      # Delete resources removed from Git
+      selfHeal: true   # Revert manual changes back to Git state
+    syncOptions:
+      - CreateNamespace=true  # Auto-create guestbook namespace
