@@ -36,8 +36,6 @@ spec:
   
   # Cluster-scoped resources that are explicitly denied
   clusterResourceBlacklist:
-    - group: ""
-      kind: Namespace
     - group: rbac.authorization.k8s.io
       kind: ClusterRole
     - group: rbac.authorization.k8s.io
