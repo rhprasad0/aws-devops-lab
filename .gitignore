@@ -5,6 +5,7 @@
 **/terraform.tfstate.*
 **/terraform.tfvars
 **/terraform.tfvars.json
+**/*.auto.tfvars
 **/*.tfplan
 **/*.tfplan.*
 

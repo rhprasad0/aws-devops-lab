@@ -1,0 +1,21 @@
+# Agent2Agent Guestbook Configuration
+# Copy this file to guestbook.auto.tfvars and customize for your environment
+
+# Enable guestbook infrastructure
+enable_guestbook = true
+
+# Resource Names
+guestbook_dynamodb_table_name = "a2a-guestbook-messages"
+guestbook_secret_name         = "a2a-guestbook/api-keys"
+
+# Kubernetes Configuration
+guestbook_namespace       = "guestbook"
+guestbook_service_account = "guestbook-sa"
+
+# Initial API Keys
+# Generate secure keys with: openssl rand -hex 32
+guestbook_initial_api_keys = [
+  "your-api-key-1-here",
+  "your-api-key-2-here",
+  "your-api-key-3-here"
+]
