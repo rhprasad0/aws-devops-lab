@@ -192,6 +192,50 @@ resource "helm_release" "argocd" {
   }
 }
 
+# Bootstrap Application - "App of Apps" pattern
+# This Application watches k8s/argocd/ and manages all other Applications/Projects
+resource "kubernetes_manifest" "argocd_bootstrap" {
+  count = var.enable_argocd ? 1 : 0
+  
+  depends_on = [helm_release.argocd]
+  
+  manifest = {
+    apiVersion = "argoproj.io/v1alpha1"
+    kind       = "Application"
+    metadata = {
+      name      = "argocd-apps"
+      namespace = "argocd"
+      labels = {
+        "app.kubernetes.io/name" = "argocd-bootstrap"
+      }
+    }
+    spec = {
+      project = "default"
+      
+      source = {
+        repoURL        = "https://github.com/rhprasad0/aws-devops-lab"
+        targetRevision = "week9"  # Point to your working branch
+        path           = "k8s/argocd"
+        directory = {
+          recurse = true  # Watch all subdirectories (projects/, applications/)
+        }
+      }
+      
+      destination = {
+        server    = "https://kubernetes.default.svc"
+        namespace = "argocd"
+      }
+      
+      syncPolicy = {
+        automated = {
+          prune    = true
+          selfHeal = true
+        }
+      }
+    }
+  }
+}
+
 # Argo CD Project for sample apps (security boundary)
 resource "kubernetes_manifest" "sample_apps_project" {
   count = var.enable_argocd_apps ? 1 : 0
@@ -262,7 +306,7 @@ resource "kubernetes_manifest" "sample_app_application" {
       project = "sample-apps"  # Use restricted project instead of default
       source = {
         repoURL        = "https://github.com/rhprasad0/aws-devops-lab"
-        targetRevision = "HEAD"
+        targetRevision = "week9"  # Point to your working branch
         path           = "k8s/sample-app"
       }
       destination = {
