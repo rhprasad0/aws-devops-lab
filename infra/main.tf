@@ -100,43 +100,23 @@ module "eks" {
   version = "21.0.0"
   
   name               = "${var.env}-eks"
-  kubernetes_version = "1.31"
+  kubernetes_version = "1.32"  # Upgraded from 1.31 to avoid extended support costs ($0.60/hr vs $0.10/hr)
   
   # Grant cluster creator admin permissions (automatically creates access entry for current user)
   enable_cluster_creator_admin_permissions = true
   
   # Additional access entries (if needed for other users/roles)
-  access_entries = {
-    # Temporarily disabled - enable when Tailscale is deployed
-    # tailscale-role = {
-    #   kubernetes_groups = []
-    #   principal_arn     = var.enable_tailscale ? aws_iam_role.tailscale[0].arn : null
-    #   
-    #   policy_associations = {
-    #     admin = {
-    #       policy_arn = "arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy"
-    #       access_scope = {
-    #         type = "cluster"
-    #       }
-    #     }
-    #   }
-    # }
-  }
+  access_entries = {}
   
   vpc_id     = module.vpc.vpc_id
   subnet_ids = module.vpc.private_subnets
   
   # Endpoint configuration (correct terraform-aws-modules/eks syntax)
-  endpoint_public_access  = !var.eks_private_only
+  endpoint_public_access  = true
   endpoint_private_access = true
   
-  # Restrict public access to Tailscale network when public access is enabled
-  endpoint_public_access_cidrs = var.eks_private_only ? [] : [
-    "0.0.0.0/0",  # Temporarily allow all - restrict after Tailscale is working
-    # "100.64.0.0/10",  # Tailscale CGNAT range (not allowed by AWS)
-    # Add your current public IP here if needed for laptop access
-    # "YOUR.PUBLIC.IP/32"
-  ]
+  # Public access enabled for kubectl from anywhere
+  endpoint_public_access_cidrs = ["0.0.0.0/0"]
   
   # Enable logging for faster debugging
   enabled_log_types = ["api", "audit", "authenticator"]
@@ -159,40 +139,11 @@ module "eks" {
     }
   }
   
-  # Managed node group
-  eks_managed_node_groups = {
-    main = {
-      # AL2 is more stable for EKS bootstrap process
-      ami_type       = "AL2_x86_64"
-      instance_types = ["t3.medium"]
-      
-      # Explicitly set Kubernetes version to match cluster
-      kubernetes_version = "1.31"
-      
-      min_size       = 2
-      max_size       = 3
-      desired_size   = 2
-      
-      # Let AWS choose the latest compatible AMI for EKS 1.31
-      # ami_release_version = "1.31.2-20241112"
-      
-      disk_size = 20
-      
-      # 15-minute timeouts for more reliable operations
-      timeouts = {
-        create = "15m"
-        update = "15m"
-        delete = "15m"
-      }
-      
-      # Fix IMDS hop limit for private subnets with NAT Gateway
-      metadata_options = {
-        http_endpoint               = "enabled"
-        http_tokens                 = "required"
-        http_put_response_hop_limit = 2
-      }
-    }
-  }
+  # Managed node group - REMOVED
+  # Using direct aws_eks_node_group resource instead (see graviton-nodes.tf)
+  # Reason: terraform-aws-modules/eks v21.0.0 has a bug where ami_type
+  # is not properly passed when using launch templates
+  eks_managed_node_groups = {}
 }
 
 # Argo CD Installation
