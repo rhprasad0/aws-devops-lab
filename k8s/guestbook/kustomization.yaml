@@ -13,7 +13,7 @@ resources:
 images:
   - name: GUESTBOOK_IMAGE
     newName: 407645373626.dkr.ecr.us-east-1.amazonaws.com/eks-lab/guestbook
-    newTag: c010edd7283e4330ee07e4d436fba600700f0bfb
+    newTag: 1f6de299003d35ec0c9f1855dc72f83a920fc2cf
 
 # ConfigMap with actual AWS resource names from Terraform
 configMapGenerator:
