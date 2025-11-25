@@ -36,10 +36,14 @@ spec:
   # Revision history limit for rollbacks
   revisionHistoryLimit: 3
   
-  # Pod selector (same as Deployment)
+  # Pod selector - must match all labels in Service selectors
+  # Kustomize adds commonLabels to both selector and service selectors
   selector:
     matchLabels:
       app: guestbook
+      app.kubernetes.io/name: guestbook
+      app.kubernetes.io/component: application
+      app.kubernetes.io/part-of: eks-lab
   
   # Canary deployment strategy
   strategy:
@@ -94,6 +98,12 @@ spec:
     metadata:
       labels:
         app: guestbook
+        # IMPORTANT: These labels must match the Service selector labels
+        # Kustomize adds commonLabels to Service selectors, so pods need them too
+        # Without these, Argo Rollouts will fail with "unmatched label" error
+        app.kubernetes.io/name: guestbook
+        app.kubernetes.io/component: application
+        app.kubernetes.io/part-of: eks-lab
       # Annotations for tracking versions (useful for debugging)
       annotations:
         # Rollout automatically adds rollout-pod-template-hash
