@@ -19,6 +19,12 @@ images:
     newTag: 1f6de299003d35ec0c9f1855dc72f83a920fc2cf
 
 # ConfigMap with actual AWS resource names from Terraform
+# NOTE: disableNameSuffixHash is required for Argo Rollouts because Kustomize
+# doesn't know how to update envFrom references in custom resources (CRDs).
+# Without this, pods fail with "configmap not found" error.
+generatorOptions:
+  disableNameSuffixHash: true
+
 configMapGenerator:
   - name: guestbook-config
     literals:
