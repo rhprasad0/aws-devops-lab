@@ -1,0 +1,163 @@
+# Week 9: Argo Rollout with Canary Strategy
+#
+# WHY use Rollout instead of Deployment?
+# - Standard K8s Deployment: RollingUpdate replaces pods one by one, but ALL traffic
+#   immediately goes to new pods as soon as they're ready
+# - Argo Rollout: Controls actual TRAFFIC percentage to new version, allowing gradual
+#   validation before full rollout
+#
+# HOW Canary works:
+# 1. Deploy new "canary" pods alongside existing "stable" pods
+# 2. Send small percentage of traffic (e.g., 20%) to canary
+# 3. Monitor metrics/health during pause periods
+# 4. Gradually increase traffic (40% → 60% → 100%)
+# 5. If issues detected: automatic or manual rollback
+# 6. If successful: promote canary to stable
+#
+# TRAFFIC MANAGEMENT OPTIONS:
+# 1. Replica-based (used here): Argo scales canary replicas to achieve traffic ratio
+#    - Simple, works without extra setup
+#    - Less precise (depends on load balancer distribution)
+# 2. ALB traffic splitting: Uses AWS ALB target group weights
+#    - Precise traffic percentages
+#    - Requires additional ALB ingress annotations (documented below)
+#
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: guestbook
+  namespace: guestbook
+  labels:
+    app: guestbook
+spec:
+  # Total replicas across stable + canary
+  replicas: 3
+  
+  # Revision history limit for rollbacks
+  revisionHistoryLimit: 3
+  
+  # Pod selector (same as Deployment)
+  selector:
+    matchLabels:
+      app: guestbook
+  
+  # Canary deployment strategy
+  strategy:
+    canary:
+      # Service that receives canary traffic (for monitoring/testing)
+      canaryService: guestbook-canary
+      
+      # Service that receives stable traffic
+      stableService: guestbook
+      
+      # Canary steps - the rollout progression
+      # Each step either sets traffic weight or pauses
+      steps:
+        # Step 1: Send 20% traffic to canary, pause for validation
+        - setWeight: 20
+        - pause: { duration: 30s }  # Auto-promote after 30s (use {} for manual promotion)
+        
+        # Step 2: Increase to 50%, pause again
+        - setWeight: 50
+        - pause: { duration: 30s }
+        
+        # Step 3: Full rollout (implicit 100% after all steps)
+        # The rollout automatically promotes to stable after all steps complete
+      
+      # Max unavailable during rollout (protect availability)
+      maxUnavailable: 0
+      
+      # Max surge - how many extra pods can be created during rollout
+      maxSurge: 1
+      
+      # Traffic routing configuration for ALB (optional, more precise)
+      # Uncomment to enable AWS ALB traffic splitting:
+      # trafficRouting:
+      #   alb:
+      #     ingress: guestbook
+      #     servicePort: 80
+      #     # Root service that owns the ALB ingress
+      #     rootService: guestbook
+      
+      # Analysis - automated metrics-based promotion/rollback (Week 10+)
+      # Uncomment when Prometheus is available:
+      # analysis:
+      #   templates:
+      #     - templateName: success-rate
+      #   startingStep: 2  # Start analysis at 50% traffic
+      #   args:
+      #     - name: service-name
+      #       value: guestbook-canary
+  
+  # Pod template (same as Deployment.spec.template)
+  template:
+    metadata:
+      labels:
+        app: guestbook
+      # Annotations for tracking versions (useful for debugging)
+      annotations:
+        # Rollout automatically adds rollout-pod-template-hash
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8000"
+        prometheus.io/path: "/metrics"
+    spec:
+      serviceAccountName: guestbook-sa
+      
+      # Security context - run as non-root (security best practice)
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+      
+      containers:
+      - name: guestbook
+        image: GUESTBOOK_IMAGE  # Replaced by Kustomize
+        imagePullPolicy: Always
+        
+        ports:
+        - containerPort: 8000
+          name: http
+          protocol: TCP
+        
+        # Environment from ConfigMap
+        envFrom:
+        - configMapRef:
+            name: guestbook-config
+        
+        # Resource requests/limits (cost-appropriate for lab)
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            cpu: 500m
+            memory: 512Mi
+        
+        # Liveness probe - restart if unhealthy
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        
+        # Readiness probe - don't send traffic until ready
+        # CRITICAL for canary: ensures new version is healthy before receiving traffic
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
+        
+        # Container security context
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: false  # App needs to write temp files
+          capabilities:
+            drop:
+            - ALL

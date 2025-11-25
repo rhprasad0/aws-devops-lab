@@ -5,7 +5,10 @@ namespace: guestbook
 
 resources:
   - serviceaccount.yaml
-  - deployment.yaml
+  # Week 9: Using Rollout instead of Deployment for canary deployments
+  # The Rollout CRD provides progressive delivery with traffic control
+  - rollout.yaml
+  # - deployment.yaml  # Replaced by rollout.yaml
   - service.yaml
   - ingress.yaml
 

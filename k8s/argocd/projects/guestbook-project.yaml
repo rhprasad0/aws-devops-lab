@@ -33,6 +33,13 @@ spec:
       kind: ReplicaSet
     - group: networking.k8s.io
       kind: Ingress
+    # Argo Rollouts CRDs for canary/blue-green deployments (Week 9)
+    - group: argoproj.io
+      kind: Rollout
+    - group: argoproj.io
+      kind: AnalysisTemplate
+    - group: argoproj.io
+      kind: AnalysisRun
   
   # Cluster-scoped resources that are explicitly allowed
   clusterResourceWhitelist:
