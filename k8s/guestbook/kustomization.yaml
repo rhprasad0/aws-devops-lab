@@ -1,3 +1,5 @@
+# Kustomization for guestbook application
+# This file configures the Kubernetes resources for deployment
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
@@ -13,6 +15,7 @@ resources:
   - ingress.yaml
 
 # ECR image configuration
+# Image is updated automatically by CI/CD pipeline after successful Trivy scan
 images:
   - name: GUESTBOOK_IMAGE
     newName: 407645373626.dkr.ecr.us-east-1.amazonaws.com/eks-lab/guestbook
