@@ -16,7 +16,7 @@ resources:
 images:
   - name: GUESTBOOK_IMAGE
     newName: 407645373626.dkr.ecr.us-east-1.amazonaws.com/eks-lab/guestbook
-    newTag: b2f7ce6c297bef927bfaf7a9cb26ca8ee38693f4
+    newTag: ce2602902079582bbcf72950530bad88111b1584
 
 # ConfigMap with actual AWS resource names from Terraform
 # NOTE: disableNameSuffixHash is required for Argo Rollouts because Kustomize
