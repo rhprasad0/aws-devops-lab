@@ -1,0 +1,173 @@
+# Validate that image references in manifests point to scanned images
+# This workflow should be copied to your GitOps manifest repo (aws-devops-lab)
+#
+# Usage in aws-devops-lab repo:
+#   1. Copy this file to .github/workflows/validate-image-refs.yml
+#   2. Configure required secrets (see below)
+#   3. Enable branch protection requiring this check to pass
+#
+# Required secrets in aws-devops-lab repo:
+#   - AWS credentials (via OIDC or secrets) with ecr:DescribeImages permission
+
+name: Validate Image References
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'k8s/**/*.yaml'
+      - 'k8s/**/*.yml'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'k8s/**/*.yaml'
+      - 'k8s/**/*.yml'
+
+env:
+  AWS_REGION: us-east-1
+  ECR_REGISTRY: 407645373626.dkr.ecr.us-east-1.amazonaws.com
+
+permissions:
+  id-token: write   # Required for OIDC
+  contents: read
+  pull-requests: write  # To post comments
+
+jobs:
+  validate-images:
+    name: Validate Scanned Images
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout PR branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          # Use the same OIDC role or create a read-only role for validation
+          role-to-assume: arn:aws:iam::407645373626:role/dev-github-actions-ecr-role
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Get changed files
+        id: changed-files
+        uses: tj-actions/changed-files@v42
+        with:
+          files: |
+            k8s/**/*.yaml
+            k8s/**/*.yml
+
+      - name: Extract and validate image references
+        id: validate
+        run: |
+          set -e
+          
+          echo "## Image Reference Validation" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          VALIDATION_FAILED=false
+          IMAGES_CHECKED=0
+          
+          # Pattern to match ECR image references
+          ECR_PATTERN="407645373626\.dkr\.ecr\.[a-z0-9-]+\.amazonaws\.com/[a-zA-Z0-9/_-]+:[a-zA-Z0-9._-]+"
+          
+          for file in ${{ steps.changed-files.outputs.all_changed_files }}; do
+            echo "Checking: $file"
+            
+            # Extract all ECR image references from the file
+            IMAGES=$(grep -oE "$ECR_PATTERN" "$file" 2>/dev/null || true)
+            
+            if [ -z "$IMAGES" ]; then
+              echo "  No ECR images found in $file"
+              continue
+            fi
+            
+            while IFS= read -r IMAGE; do
+              if [ -z "$IMAGE" ]; then
+                continue
+              fi
+              
+              IMAGES_CHECKED=$((IMAGES_CHECKED + 1))
+              
+              # Parse image components
+              REPO=$(echo "$IMAGE" | sed 's|.*/||' | cut -d: -f1)
+              TAG=$(echo "$IMAGE" | sed 's|.*:||')
+              FULL_REPO=$(echo "$IMAGE" | cut -d: -f1 | sed 's|407645373626.dkr.ecr.[a-z0-9-]*.amazonaws.com/||')
+              
+              echo "  Validating: $FULL_REPO:$TAG"
+              
+              # Check if scan-passed attestation tag exists
+              SCAN_TAG="scan-passed-$TAG"
+              
+              if aws ecr describe-images \
+                --repository-name "$FULL_REPO" \
+                --image-ids imageTag="$SCAN_TAG" \
+                --region "${{ env.AWS_REGION }}" \
+                --query 'imageDetails[0].imageTags' \
+                --output text 2>/dev/null | grep -q "$SCAN_TAG"; then
+                echo "    ✅ Scan attestation found: $SCAN_TAG"
+                echo "| $file | $FULL_REPO:$TAG | ✅ Passed |" >> $GITHUB_STEP_SUMMARY
+              else
+                echo "    ❌ No scan attestation found for: $SCAN_TAG"
+                echo "| $file | $FULL_REPO:$TAG | ❌ **FAILED** |" >> $GITHUB_STEP_SUMMARY
+                VALIDATION_FAILED=true
+              fi
+            done <<< "$IMAGES"
+          done
+          
+          if [ "$IMAGES_CHECKED" -eq 0 ]; then
+            echo "No ECR images found in changed files" >> $GITHUB_STEP_SUMMARY
+            echo "validation_result=skipped" >> $GITHUB_OUTPUT
+          elif [ "$VALIDATION_FAILED" = true ]; then
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### ❌ Validation Failed" >> $GITHUB_STEP_SUMMARY
+            echo "One or more images have not passed security scanning." >> $GITHUB_STEP_SUMMARY
+            echo "Only images that have been scanned by Trivy and pushed via CI can be deployed." >> $GITHUB_STEP_SUMMARY
+            echo "validation_result=failed" >> $GITHUB_OUTPUT
+          else
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### ✅ All Images Validated" >> $GITHUB_STEP_SUMMARY
+            echo "All referenced images have passed security scanning." >> $GITHUB_STEP_SUMMARY
+            echo "validation_result=passed" >> $GITHUB_OUTPUT
+          fi
+          
+          echo "images_checked=$IMAGES_CHECKED" >> $GITHUB_OUTPUT
+          echo "validation_failed=$VALIDATION_FAILED" >> $GITHUB_OUTPUT
+
+      - name: Post PR Comment
+        if: steps.validate.outputs.validation_result == 'failed'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `## ❌ Image Security Validation Failed
+            
+            This PR references container images that have not passed security scanning.
+            
+            **Only images that have been:**
+            1. Built by the CI/CD pipeline
+            2. Scanned with Trivy (no HIGH/CRITICAL vulnerabilities)
+            3. Tagged with scan attestation
+            
+            **can be merged to this branch.**
+            
+            ### How to fix:
+            - Ensure image changes come through the automated CI/CD pipeline
+            - If manually updating image tags, use tags from successful workflow runs
+            - Check the [agent2agent-guestbook Actions](https://github.com/rhprasad0/agent2agent-guestbook/actions) for valid image tags
+            
+            See the workflow summary for details on which images failed validation.`
+            })
+
+      - name: Fail if validation failed
+        if: steps.validate.outputs.validation_result == 'failed'
+        run: |
+          echo "❌ Image validation failed - PR cannot be merged"
+          exit 1
+

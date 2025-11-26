@@ -214,7 +214,7 @@ resource "kubernetes_manifest" "argocd_bootstrap" {
       
       source = {
         repoURL        = "https://github.com/rhprasad0/aws-devops-lab"
-        targetRevision = "week9"  # Point to your working branch
+        targetRevision = "main"
         path           = "k8s/argocd"
         directory = {
           recurse = true  # Watch all subdirectories (projects/, applications/)
@@ -306,7 +306,7 @@ resource "kubernetes_manifest" "sample_app_application" {
       project = "sample-apps"  # Use restricted project instead of default
       source = {
         repoURL        = "https://github.com/rhprasad0/aws-devops-lab"
-        targetRevision = "week9"  # Point to your working branch
+        targetRevision = "main"
         path           = "k8s/sample-app"
       }
       destination = {

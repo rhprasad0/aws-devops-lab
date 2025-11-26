@@ -12,7 +12,7 @@ spec:
   # Source repository and path
   source:
     repoURL: https://github.com/rhprasad0/aws-devops-lab
-    targetRevision: week9  # Point to your working branch
+    targetRevision: main
     path: k8s/guestbook
   
   # Destination cluster and namespace
