@@ -1,13 +1,12 @@
 # Validate that image references in manifests point to scanned images
-# This workflow should be copied to your GitOps manifest repo (aws-devops-lab)
+# This workflow validates ECR images in K8s manifests have passed security scanning
 #
-# Usage in aws-devops-lab repo:
-#   1. Copy this file to .github/workflows/validate-image-refs.yml
-#   2. Configure required secrets (see below)
-#   3. Enable branch protection requiring this check to pass
+# Supports two image reference formats:
+#   1. Standard: image: 407645373626.dkr.ecr.us-east-1.amazonaws.com/repo:tag
+#   2. Kustomize image transformer: newName + newTag on separate lines
 #
-# Required secrets in aws-devops-lab repo:
-#   - AWS credentials (via OIDC or secrets) with ecr:DescribeImages permission
+# Required secrets:
+#   - AWS credentials (via OIDC) with ecr:DescribeImages permission
 
 name: Validate Image References
 
@@ -67,18 +66,43 @@ jobs:
           
           echo "## Image Reference Validation" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| File | Image | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|------|-------|--------|" >> $GITHUB_STEP_SUMMARY
           
           VALIDATION_FAILED=false
           IMAGES_CHECKED=0
           
-          # Pattern to match ECR image references
+          # Pattern to match ECR image references (standard format: image:tag on same line)
           ECR_PATTERN="407645373626\.dkr\.ecr\.[a-z0-9-]+\.amazonaws\.com/[a-zA-Z0-9/_-]+:[a-zA-Z0-9._-]+"
           
           for file in ${{ steps.changed-files.outputs.all_changed_files }}; do
             echo "Checking: $file"
             
-            # Extract all ECR image references from the file
-            IMAGES=$(grep -oE "$ECR_PATTERN" "$file" 2>/dev/null || true)
+            IMAGES=""
+            
+            # Method 1: Check for standard image:tag format (e.g., in Deployments, Pods)
+            STANDARD_IMAGES=$(grep -oE "$ECR_PATTERN" "$file" 2>/dev/null || true)
+            if [ -n "$STANDARD_IMAGES" ]; then
+              IMAGES="$STANDARD_IMAGES"
+            fi
+            
+            # Method 2: Check for Kustomize image transformer format
+            # Kustomize uses separate newName and newTag fields:
+            #   images:
+            #     - name: PLACEHOLDER
+            #       newName: 407645373626.dkr.ecr.../repo
+            #       newTag: sha256abc123
+            if [ -z "$IMAGES" ]; then
+              # Extract newName that matches our ECR registry
+              NEW_NAME=$(grep -E "^\s*newName:\s*407645373626\.dkr\.ecr\." "$file" 2>/dev/null | sed 's/.*newName:\s*//' | tr -d ' ' || true)
+              # Extract newTag value
+              NEW_TAG=$(grep -E "^\s*newTag:\s*" "$file" 2>/dev/null | sed 's/.*newTag:\s*//' | tr -d ' ' || true)
+              
+              if [ -n "$NEW_NAME" ] && [ -n "$NEW_TAG" ]; then
+                echo "  Found Kustomize image transformer: $NEW_NAME:$NEW_TAG"
+                IMAGES="$NEW_NAME:$NEW_TAG"
+              fi
+            fi
             
             if [ -z "$IMAGES" ]; then
               echo "  No ECR images found in $file"
@@ -93,13 +117,14 @@ jobs:
               IMAGES_CHECKED=$((IMAGES_CHECKED + 1))
               
               # Parse image components
-              REPO=$(echo "$IMAGE" | sed 's|.*/||' | cut -d: -f1)
-              TAG=$(echo "$IMAGE" | sed 's|.*:||')
+              # Handle both formats: full ECR URL or just repo:tag
               FULL_REPO=$(echo "$IMAGE" | cut -d: -f1 | sed 's|407645373626.dkr.ecr.[a-z0-9-]*.amazonaws.com/||')
+              TAG=$(echo "$IMAGE" | sed 's|.*:||')
               
               echo "  Validating: $FULL_REPO:$TAG"
               
               # Check if scan-passed attestation tag exists
+              # The build pipeline creates this tag after successful Trivy scan
               SCAN_TAG="scan-passed-$TAG"
               
               if aws ecr describe-images \
@@ -109,28 +134,30 @@ jobs:
                 --query 'imageDetails[0].imageTags' \
                 --output text 2>/dev/null | grep -q "$SCAN_TAG"; then
                 echo "    ✅ Scan attestation found: $SCAN_TAG"
-                echo "| $file | $FULL_REPO:$TAG | ✅ Passed |" >> $GITHUB_STEP_SUMMARY
+                echo "| \`$file\` | \`$FULL_REPO:$TAG\` | ✅ Passed |" >> $GITHUB_STEP_SUMMARY
               else
                 echo "    ❌ No scan attestation found for: $SCAN_TAG"
-                echo "| $file | $FULL_REPO:$TAG | ❌ **FAILED** |" >> $GITHUB_STEP_SUMMARY
+                echo "| \`$file\` | \`$FULL_REPO:$TAG\` | ❌ **FAILED** |" >> $GITHUB_STEP_SUMMARY
                 VALIDATION_FAILED=true
               fi
             done <<< "$IMAGES"
           done
           
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
           if [ "$IMAGES_CHECKED" -eq 0 ]; then
             echo "No ECR images found in changed files" >> $GITHUB_STEP_SUMMARY
             echo "validation_result=skipped" >> $GITHUB_OUTPUT
           elif [ "$VALIDATION_FAILED" = true ]; then
-            echo "" >> $GITHUB_STEP_SUMMARY
             echo "### ❌ Validation Failed" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
             echo "One or more images have not passed security scanning." >> $GITHUB_STEP_SUMMARY
             echo "Only images that have been scanned by Trivy and pushed via CI can be deployed." >> $GITHUB_STEP_SUMMARY
             echo "validation_result=failed" >> $GITHUB_OUTPUT
           else
-            echo "" >> $GITHUB_STEP_SUMMARY
             echo "### ✅ All Images Validated" >> $GITHUB_STEP_SUMMARY
-            echo "All referenced images have passed security scanning." >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "All $IMAGES_CHECKED referenced image(s) have passed security scanning." >> $GITHUB_STEP_SUMMARY
             echo "validation_result=passed" >> $GITHUB_OUTPUT
           fi
           
@@ -138,7 +165,7 @@ jobs:
           echo "validation_failed=$VALIDATION_FAILED" >> $GITHUB_OUTPUT
 
       - name: Post PR Comment
-        if: steps.validate.outputs.validation_result == 'failed'
+        if: github.event_name == 'pull_request' && steps.validate.outputs.validation_result == 'failed'
         uses: actions/github-script@v7
         with:
           script: |
@@ -170,4 +197,3 @@ jobs:
         run: |
           echo "❌ Image validation failed - PR cannot be merged"
           exit 1
-
