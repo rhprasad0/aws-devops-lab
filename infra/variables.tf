@@ -36,6 +36,13 @@ variable "enable_argocd_apps" {
   default     = false
 }
 
+# Argo Rollouts configuration (Week 9)
+variable "enable_argo_rollouts" {
+  description = "Enable Argo Rollouts for canary/blue-green deployments"
+  type        = bool
+  default     = true
+}
+
 # Agent2Agent Guestbook configuration
 variable "enable_guestbook" {
   description = "Enable Agent2Agent Guestbook infrastructure (DynamoDB + Secrets Manager)"

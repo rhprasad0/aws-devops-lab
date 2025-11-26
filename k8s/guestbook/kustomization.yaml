@@ -4,30 +4,38 @@ kind: Kustomization
 namespace: guestbook
 
 resources:
-  - namespace.yaml
   - serviceaccount.yaml
-  - deployment.yaml
+  # Week 9: Using Rollout instead of Deployment for canary deployments
+  # The Rollout CRD provides progressive delivery with traffic control
+  - rollout.yaml
+  # - deployment.yaml  # Replaced by rollout.yaml
   - service.yaml
   - ingress.yaml
 
-# Image will be updated by CI/CD pipeline or manually
+# ECR image configuration
 images:
   - name: GUESTBOOK_IMAGE
-    newName: ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/eks-lab/guestbook
-    newTag: latest
+    newName: 407645373626.dkr.ecr.us-east-1.amazonaws.com/eks-lab/guestbook
+    newTag: b2f7ce6c297bef927bfaf7a9cb26ca8ee38693f4
 
-# ConfigMap generator for environment-specific values
+# ConfigMap with actual AWS resource names from Terraform
+# NOTE: disableNameSuffixHash is required for Argo Rollouts because Kustomize
+# doesn't know how to update envFrom references in custom resources (CRDs).
+# Without this, pods fail with "configmap not found" error.
+generatorOptions:
+  disableNameSuffixHash: true
+
 configMapGenerator:
   - name: guestbook-config
     literals:
       - AWS_REGION=us-east-1
-      - DYNAMODB_TABLE_NAME=dev-guestbook-messages
-      - API_KEYS_SECRET_NAME=dev-guestbook-api-keys
+      - DYNAMODB_TABLE_NAME=a2a-guestbook-messages
+      - API_KEYS_SECRET_NAME=a2a-guestbook/api-keys
       - RATE_LIMIT_PER_MINUTE=10
       - LOG_LEVEL=INFO
       - PORT=8000
 
-# Common labels applied to all resources
+# Common labels
 commonLabels:
   app.kubernetes.io/name: guestbook
   app.kubernetes.io/component: application

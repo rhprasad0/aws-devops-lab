@@ -1,3 +1,20 @@
+# Week 9: Services for Argo Rollouts Canary Deployment
+#
+# WHY two services?
+# - Argo Rollouts needs separate services to control traffic routing
+# - Stable service: Routes to the current production version
+# - Canary service: Routes to the new version being tested
+#
+# HOW IT WORKS:
+# Argo Rollouts controller automatically modifies these services to add
+# the appropriate `rollouts-pod-template-hash` selector, ensuring each
+# service only routes to its intended pods (stable vs canary).
+#
+# The Ingress points to the stable service, and Rollouts manages traffic
+# distribution between stable/canary based on the rollout strategy steps.
+#
+---
+# Stable Service - routes to current production version
 apiVersion: v1
 kind: Service
 metadata:
@@ -5,6 +22,8 @@ metadata:
   namespace: guestbook
   labels:
     app: guestbook
+    # Label to identify this as the stable service (for documentation)
+    rollouts.argoproj.io/service-type: stable
 spec:
   type: ClusterIP
   ports:
@@ -14,3 +33,28 @@ spec:
     name: http
   selector:
     app: guestbook
+    # Note: Argo Rollouts will automatically add rollouts-pod-template-hash
+    # to select only stable pods
+---
+# Canary Service - routes to new version being tested
+# Use this service to directly test the canary pods during rollout
+apiVersion: v1
+kind: Service
+metadata:
+  name: guestbook-canary
+  namespace: guestbook
+  labels:
+    app: guestbook
+    # Label to identify this as the canary service
+    rollouts.argoproj.io/service-type: canary
+spec:
+  type: ClusterIP
+  ports:
+  - port: 80
+    targetPort: 8000
+    protocol: TCP
+    name: http
+  selector:
+    app: guestbook
+    # Note: Argo Rollouts will automatically add rollouts-pod-template-hash
+    # to select only canary pods

@@ -25,7 +25,7 @@ resource "aws_iam_openid_connect_provider" "github" {
 resource "aws_iam_role" "github_actions_ecr" {
   name = "${var.env}-github-actions-ecr-role"
 
-  # Trust policy: allow GitHub Actions from your repo to assume this role
+  # Trust policy: allow GitHub Actions from your repos to assume this role
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
@@ -40,8 +40,11 @@ resource "aws_iam_role" "github_actions_ecr" {
             "token.actions.githubusercontent.com:aud" = "sts.amazonaws.com"
           }
           StringLike = {
-            # Allow both repos: infra repo and guestbook app repo
-            "token.actions.githubusercontent.com:sub" = "repo:rhprasad0/agent2agent-guestbook:*"
+            # Allow both repos: app repo (CI/CD) and infra repo (validation)
+            "token.actions.githubusercontent.com:sub" = [
+              "repo:rhprasad0/agent2agent-guestbook:*",
+              "repo:rhprasad0/aws-devops-lab:*"
+            ]
           }
         }
       }
@@ -72,6 +75,7 @@ resource "aws_iam_role_policy" "github_actions_ecr_push" {
       {
         Effect = "Allow"
         Action = [
+          # Push permissions (for CI/CD pipeline)
           "ecr:BatchCheckLayerAvailability",
           "ecr:GetDownloadUrlForLayer",
           "ecr:BatchGetImage",
@@ -79,6 +83,8 @@ resource "aws_iam_role_policy" "github_actions_ecr_push" {
           "ecr:InitiateLayerUpload",
           "ecr:UploadLayerPart",
           "ecr:CompleteLayerUpload",
+          # Read permissions (for image validation workflow)
+          "ecr:DescribeImages",
         ]
         Resource = aws_ecr_repository.guestbook.arn
       }

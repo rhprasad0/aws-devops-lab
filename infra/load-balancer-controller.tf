@@ -27,7 +27,7 @@ resource "helm_release" "aws_load_balancer_controller" {
   # Wait for all resources to be ready before marking as successful
   wait          = true
   wait_for_jobs = true
-  timeout       = 300  # 5 minutes timeout
+  timeout       = 600  # 10 minutes timeout - increased for webhook readiness
   
   # Configuration values for the controller
   values = [
@@ -58,6 +58,9 @@ resource "helm_release" "aws_load_balancer_controller" {
       
       # AWS region where ALBs will be created
       region = var.region
+      
+      # VPC ID - required when EC2 metadata is unavailable (IMDSv2 strict mode)
+      vpcId = module.vpc.vpc_id
       
       # Default tags applied to all ALBs created by this controller
       defaultTags = {

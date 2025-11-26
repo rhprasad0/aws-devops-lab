@@ -19,7 +19,7 @@ metadata:
     # alb.ingress.kubernetes.io/certificate-arn: CERTIFICATE_ARN
 spec:
   rules:
-  - host: guestbook.dev.eks-lab.ryanprasad.com
+  - host: guestbook.dev.ryans-lab.click
     http:
       paths:
       - path: /

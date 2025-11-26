@@ -1,0 +1,40 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: guestbook
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: guestbook
+spec:
+  # Use the guestbook project for governance
+  project: guestbook
+  
+  # Source repository and path
+  source:
+    repoURL: https://github.com/rhprasad0/aws-devops-lab
+    targetRevision: main
+    path: k8s/guestbook
+  
+  # Destination cluster and namespace
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: guestbook
+  
+  # Sync policy - automated with prune and self-heal
+  syncPolicy:
+    automated:
+      prune: true      # Delete resources removed from Git
+      selfHeal: true   # Revert manual changes back to Git state
+      allowEmpty: false # Prevent deletion of all resources if source is empty
+    syncOptions:
+      - CreateNamespace=true     # Auto-create guestbook namespace
+      - PrunePropagationPolicy=foreground  # Wait for cascading deletes to complete
+      - PruneLast=true           # Prune resources as last step (after applying new resources)
+      - RespectIgnoreDifferences=true  # Honor ignoreDifferences when syncing
+      - ApplyOutOfSyncOnly=true  # Only sync resources that are out-of-sync
+    retry:
+      limit: 5                   # Retry failed syncs up to 5 times
+      backoff:
+        duration: 5s             # Initial retry delay
+        factor: 2                # Exponential backoff multiplier
+        maxDuration: 3m          # Maximum retry delay
