@@ -1,0 +1,83 @@
+{
+  "name": "AWS DevOps Lab (Secure)",
+  
+  // Use custom Dockerfile for hardened image
+  "build": {
+    "dockerfile": "Dockerfile",
+    "context": "."
+  },
+
+  // Run as non-root user - critical for security
+  "remoteUser": "vscode",
+  
+  // Container security settings
+  // Note: Docker-in-Docker feature overrides some of these for its daemon
+  "runArgs": [
+    // Generous resource limits for development
+    "--memory=16g",
+    "--cpus=8",
+    
+    // Security: use custom seccomp profile
+    "--security-opt", "seccomp=.devcontainer/seccomp-profile.json",
+    
+    // Security: no privileged mode (default, but explicit)
+    "--security-opt", "no-new-privileges:true",
+    
+    // Security: drop all capabilities, add back only what's needed
+    // Note: Docker-in-Docker feature automatically adds required caps
+    "--cap-drop=ALL",
+    "--cap-add=NET_BIND_SERVICE",
+    
+    // Security: read-only root filesystem with specific writable areas
+    // Commented out for now - can be enabled for maximum security
+    // "--read-only",
+    
+    // Security: no host network access
+    "--network=bridge"
+  ],
+
+  // Mount only the workspace - no host filesystem access
+  "workspaceMount": "source=${localWorkspaceFolder},target=/workspaces/aws-devops-lab,type=bind,consistency=cached",
+  "workspaceFolder": "/workspaces/aws-devops-lab",
+
+  // SECURITY: Do NOT mount Docker socket - prevents container escape
+  // "mounts": ["/var/run/docker.sock:/var/run/docker.sock"]  // NEVER DO THIS
+
+  // VS Code / Cursor extensions
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "hashicorp.terraform",
+        "ms-kubernetes-tools.vscode-kubernetes-tools",
+        "redhat.vscode-yaml",
+        "ms-python.python",
+        "amazonwebservices.aws-toolkit-vscode"
+      ],
+      "settings": {
+        "terminal.integrated.defaultProfile.linux": "bash",
+        "editor.formatOnSave": true
+      }
+    }
+  },
+
+  // Post-create command to set up the environment
+  "postCreateCommand": "git config --global --add safe.directory /workspaces/aws-devops-lab && echo '🔒 Secure dev container ready. Run: aws sso login'",
+
+  // Features to install (minimal set)
+  "features": {
+    // AWS CLI v2
+    "ghcr.io/devcontainers/features/aws-cli:1": {},
+    // Terraform
+    "ghcr.io/devcontainers/features/terraform:1": {},
+    // kubectl
+    "ghcr.io/devcontainers/features/kubectl-helm-minikube:1": {
+      "minikube": "none"
+    },
+    // Docker-in-Docker for GitHub MCP server
+    // Note: This runs Docker daemon inside the container (safer than socket mount)
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {
+      "dockerDashComposeVersion": "none"
+    }
+  }
+}
+

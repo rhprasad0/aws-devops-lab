@@ -19,6 +19,10 @@
 *.swp
 *.swo
 
+# Cursor MCP config (contains secrets like GitHub PAT)
+# Use .cursor/mcp.json.example as template
+.cursor/mcp.json
+
 # OS
 .DS_Store
 Thumbs.db
