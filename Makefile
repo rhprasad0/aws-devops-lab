@@ -53,4 +53,8 @@ checkov-detailed:
 	@echo "🔍 Running detailed Checkov security scan..."
 	cd infra && checkov -d . --framework terraform
 
-.PHONY: up down plan kube security cleanup-check checkov checkov-detailed
+# Refresh AWS credentials for MCP server (after aws login)
+creds:
+	@./scripts/refresh-aws-creds.sh
+
+.PHONY: up down plan kube security cleanup-check checkov checkov-detailed creds
