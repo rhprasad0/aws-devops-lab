@@ -277,9 +277,40 @@ resource "aws_grafana_workspace_service_account_token" "prometheus_admin" {
   count = var.enable_grafana ? 1 : 0
 
   name               = "prometheus-admin-token"
-  service_account_id = aws_grafana_workspace_service_account.prometheus_admin[0].id
+  service_account_id = aws_grafana_workspace_service_account.prometheus_admin[0].service_account_id
   seconds_to_live    = 2592000 # 30 days
   workspace_id       = aws_grafana_workspace.main[0].id
+}
+
+# -----------------------------------------------------------------------------
+# Grafana Provider Configuration
+# -----------------------------------------------------------------------------
+# Configure the Grafana provider to manage resources inside the workspace
+
+provider "grafana" {
+  url  = var.enable_grafana ? "https://${aws_grafana_workspace.main[0].endpoint}/" : ""
+  auth = var.enable_grafana ? aws_grafana_workspace_service_account_token.prometheus_admin[0].key : ""
+}
+
+# -----------------------------------------------------------------------------
+# Grafana Data Source: Amazon Managed Prometheus
+# -----------------------------------------------------------------------------
+# Automatically creates the data source in Grafana so you don't have to click manually
+
+resource "grafana_data_source" "prometheus" {
+  count = var.enable_grafana && var.enable_prometheus ? 1 : 0
+
+  type = "prometheus"
+  name = "Amazon Managed Prometheus"
+  url  = aws_prometheus_workspace.main[0].prometheus_endpoint
+
+  # Enable SigV4 authentication for AWS
+  json_data_encoded = jsonencode({
+    httpMethod    = "POST"
+    sigV4Auth     = true
+    sigV4AuthType = "default"
+    sigV4Region   = var.region
+  })
 }
 
 # -----------------------------------------------------------------------------
@@ -337,22 +368,17 @@ locals {
     "   - Use your IAM Identity Center credentials",
     "   - If you don't have access, ask your admin to assign you to this workspace",
     "",
-    "3. CONFIGURE PROMETHEUS DATA SOURCE (Using AWS Data Source Config):",
-    "   a. In AWS Console: Amazon Managed Grafana -> Your workspace",
-    "   b. Data sources tab -> Select 'Amazon Managed Service for Prometheus'",
-    "   c. Actions -> 'Enable service-managed policy'",
-    "   d. Click 'Configure in Grafana' to open workspace",
-    "   e. In Grafana: AWS icon -> AWS services -> Prometheus",
-    "   f. Select region: ${var.region}",
-    "   g. Select your AMP workspace and click 'Add data source'",
+    "3. VERIFY PROMETHEUS DATA SOURCE:",
+    "   - Go to Connections -> Data Sources",
+    "   - You should see 'Amazon Managed Prometheus' already configured!",
+    "   - Click 'Test' to verify",
     "",
     "4. IMPORT KUBERNETES DASHBOARDS:",
     "   a. Go to Dashboards -> Import",
     "   b. Import these recommended dashboards by ID:",
-    "      - 315   - Kubernetes cluster monitoring (via Prometheus)",
-    "      - 6417  - Kubernetes Pods monitoring",
-    "      - 13770 - Kube-state-metrics v2",
-    "      - 12006 - Kubernetes apiserver",
+    "      - 3119  - Kubernetes Cluster (Prometheus) - English",
+    "      - 6417  - Kubernetes Pods monitoring - English",
+    "      - 12740 - Kubernetes / Views / Global (All-in-one) - English",
     "   c. Select 'Amazon Managed Prometheus' as the data source",
     "",
     "5. CREATE CUSTOM DASHBOARD:",
@@ -373,4 +399,3 @@ output "grafana_setup_instructions" {
   description = "Instructions to complete Grafana setup"
   value       = local.grafana_instructions
 }
-

@@ -75,7 +75,7 @@ variable "guestbook_initial_api_keys" {
 variable "guestbook_namespace" {
   description = "Kubernetes namespace for guestbook app"
   type        = string
-  default     = "default"
+  default     = "guestbook"
 }
 
 variable "guestbook_service_account" {

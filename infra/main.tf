@@ -27,6 +27,10 @@ terraform {
       version = "~> 3.0"
       # Required for unique S3 bucket names in security.tf (Config storage)
     }
+    grafana = {
+      source  = "grafana/grafana"
+      version = "~> 3.0"
+    }
   }
 }
 

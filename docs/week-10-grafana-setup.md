@@ -104,28 +104,15 @@ After Terraform completes:
 
 ### Configure Prometheus Data Source
 
-Two options:
+Good news! The **Prometheus data source is now automatically configured via Terraform**.
 
-#### Option A: Using AWS Data Source Configuration (Recommended)
+You can verify it:
 
-1. In AWS Console: **Amazon Managed Grafana** → Your workspace
+1. In Grafana, go to **Connections** → **Data Sources**
+2. You should see **Amazon Managed Prometheus** listed
+3. Click on it and click **Save & test** to verify connectivity
 
-2. Go to **Data sources** tab
-
-3. Select **Amazon Managed Service for Prometheus**
-
-4. Click **Actions** → **Enable service-managed policy**
-
-5. Click **Configure in Grafana**
-
-6. In Grafana workspace:
-   - Click the **AWS icon** (sidebar)
-   - Select **AWS services** → **Prometheus**
-   - Choose your region
-   - Select your AMP workspace
-   - Click **Add data source**
-
-#### Option B: Manual Configuration
+If you ever need to configure it manually, follow these steps:
 
 1. In Grafana, go to **Connections** → **Data Sources** → **Add data source**
 
@@ -149,10 +136,9 @@ Two options:
 
    | Dashboard ID | Name | Description |
    |--------------|------|-------------|
-   | 315 | Kubernetes cluster monitoring | Overview of cluster health |
-   | 6417 | Kubernetes Pods | Pod-level metrics |
-   | 13770 | Kube-state-metrics v2 | Deployment/ReplicaSet status |
-   | 12006 | Kubernetes apiserver | API server performance |
+   | 3119 | Kubernetes Cluster (Prometheus) | Overview of cluster health (English) |
+   | 6417 | Kubernetes Pods | Pod-level metrics (English) |
+   | 12740 | Kubernetes / Views / Global | Comprehensive all-in-one view (English) |
 
 3. Select **Amazon Managed Prometheus** as the data source
 
