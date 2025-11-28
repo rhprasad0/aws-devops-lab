@@ -314,6 +314,25 @@ resource "grafana_data_source" "prometheus" {
 }
 
 # -----------------------------------------------------------------------------
+# Grafana Dashboards
+# -----------------------------------------------------------------------------
+
+resource "grafana_dashboard" "k8s_cluster" {
+  count = var.enable_grafana && var.enable_prometheus ? 1 : 0
+
+  # Inject the UID of the datasource we created in the same file
+  # The JSON uses ${DS_PROMETHEUS} as a variable, which templatefile handles natively
+  config_json = templatefile("${path.module}/dashboards/kubernetes-cluster.json", {
+    DS_PROMETHEUS = grafana_data_source.prometheus[0].uid
+  })
+
+  # Folder 0 = General
+  folder = 0
+
+  overwrite = true
+}
+
+# -----------------------------------------------------------------------------
 # Outputs
 # -----------------------------------------------------------------------------
 
@@ -373,13 +392,10 @@ locals {
     "   - You should see 'Amazon Managed Prometheus' already configured!",
     "   - Click 'Test' to verify",
     "",
-    "4. IMPORT KUBERNETES DASHBOARDS:",
-    "   a. Go to Dashboards -> Import",
-    "   b. Import these recommended dashboards by ID:",
-    "      - 3119  - Kubernetes Cluster (Prometheus) - English",
-    "      - 6417  - Kubernetes Pods monitoring - English",
-    "      - 12740 - Kubernetes / Views / Global (All-in-one) - English",
-    "   c. Select 'Amazon Managed Prometheus' as the data source",
+    "4. VERIFY DASHBOARDS:",
+    "   - Go to Dashboards",
+    "   - You should see 'Kubernetes cluster monitoring' automatically provisioned!",
+    "   - You can add more dashboards by adding JSON files to infra/dashboards/",
     "",
     "5. CREATE CUSTOM DASHBOARD:",
     "   - Explore your metrics using the Explore view",
