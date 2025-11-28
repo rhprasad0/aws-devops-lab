@@ -65,8 +65,15 @@ spec:
                 target_label: __metrics_path__
                 regex: (.+)
               # Build __address__ from pod IP and annotation port
-              # Use __meta_kubernetes_pod_ip for the IP address
-              - source_labels: [__meta_kubernetes_pod_ip, __meta_kubernetes_pod_annotation_prometheus_io_port]
+              # First, set a debug label to see what values we have
+              - source_labels: [__meta_kubernetes_pod_ip]
+                action: replace
+                target_label: __tmp_pod_ip
+              - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_port]
+                action: replace
+                target_label: __tmp_port
+              # Construct address: pod_ip:port
+              - source_labels: [__tmp_pod_ip, __tmp_port]
                 action: replace
                 regex: (.+);(.+)
                 replacement: $1:$2
@@ -81,6 +88,13 @@ spec:
               - source_labels: [__meta_kubernetes_pod_name]
                 action: replace
                 target_label: pod
+              # Debug: expose the tmp labels to see what's happening
+              - source_labels: [__tmp_pod_ip]
+                action: replace
+                target_label: debug_pod_ip
+              - source_labels: [__tmp_port]
+                action: replace
+                target_label: debug_port
 
     extensions:
       sigv4auth:
