@@ -36,14 +36,17 @@ make down    # Destroy everything
 
 ## Remaining Weeks
 
-### Week 10 – Observability: Metrics & Dashboards
+### Week 10 – Observability: Metrics & Dashboards 🚧 BLOCKED
 **Goal:** AMP + AMG + ADOT for metrics collection
 
-- [ ] Create AMP workspace (Terraform)
-- [ ] Create AMG workspace with SSO auth
-- [ ] Install ADOT Collector with EKS Pod Identity
-- [ ] Configure Prometheus scraping → AMP remote write
-- [ ] Import Grafana dashboards (cluster, node, app golden signals)
+- [x] Create AMP workspace (Terraform)
+- [x] Create AMG workspace with SSO auth
+- [x] Install ADOT Collector with EKS Pod Identity
+- [x] Configure Prometheus scraping → AMP remote write (container metrics working)
+- [x] Import Grafana dashboards (cluster, node, app golden signals)
+- [ ] **BLOCKED:** Application metrics scraping (see `docs/week10-guestbook-metrics-investigation.md`)
+
+**Blocker:** ADOT Prometheus receiver v0.36.0 relabel_configs fail to construct `__address__` from `__meta_kubernetes_pod_ip` + annotation port. Multiple syntax variants tested; all produce `instance=":"`. Container metrics work via cAdvisor; only custom app metrics (e.g., `http_requests_total`) are affected. Options: static_configs workaround, switch to kube-prometheus-stack, or file ADOT bug.
 
 **Cost:** ~$4/session (AMP ingestion + AMG ~$9/editor/month)
 
