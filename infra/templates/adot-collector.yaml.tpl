@@ -64,12 +64,12 @@ spec:
                 action: replace
                 target_label: __metrics_path__
                 regex: (.+)
-              # Replace port in __address__ with the port from annotation
-              # __address__ format is "pod_ip:container_port", we want "pod_ip:annotation_port"
-              - source_labels: [__address__, __meta_kubernetes_pod_annotation_prometheus_io_port]
+              # Build __address__ from pod IP and annotation port
+              # Use __meta_kubernetes_pod_ip for the IP address
+              - source_labels: [__meta_kubernetes_pod_ip, __meta_kubernetes_pod_annotation_prometheus_io_port]
                 action: replace
-                regex: "([^:]+):[0-9]+;([0-9]+)"
-                replacement: "$1:$2"
+                regex: (.+);(.+)
+                replacement: $1:$2
                 target_label: __address__
               # Copy pod labels to metric labels
               - action: labelmap
