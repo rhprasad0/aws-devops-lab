@@ -50,7 +50,7 @@ spec:
           global:
             scrape_interval: 60s
           scrape_configs:
-            # Kubernetes pod discovery - scrapes pods with prometheus.io/scrape=true annotation
+            # Kubernetes pod discovery with Endpoints role (more reliable for address construction)
             - job_name: 'kubernetes-pods'
               kubernetes_sd_configs:
               - role: pod
@@ -64,19 +64,12 @@ spec:
                 action: replace
                 target_label: __metrics_path__
                 regex: (.+)
-              # Build __address__ from pod IP and annotation port
-              # First, set a debug label to see what values we have
-              - source_labels: [__meta_kubernetes_pod_ip]
+              # WORKAROUND: Use replacement with regex capture groups
+              # The OTel prometheus receiver requires explicit regex even for simple copies
+              - source_labels: [__meta_kubernetes_pod_ip, __meta_kubernetes_pod_annotation_prometheus_io_port]
                 action: replace
-                target_label: __tmp_pod_ip
-              - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_port]
-                action: replace
-                target_label: __tmp_port
-              # Construct address: pod_ip:port
-              - source_labels: [__tmp_pod_ip, __tmp_port]
-                action: replace
-                regex: (.+);(.+)
-                replacement: $1:$2
+                regex: "(.+);(.+)"
+                replacement: "${1}:${2}"
                 target_label: __address__
               # Copy pod labels to metric labels
               - action: labelmap
@@ -88,13 +81,6 @@ spec:
               - source_labels: [__meta_kubernetes_pod_name]
                 action: replace
                 target_label: pod
-              # Debug: expose the tmp labels to see what's happening
-              - source_labels: [__tmp_pod_ip]
-                action: replace
-                target_label: debug_pod_ip
-              - source_labels: [__tmp_port]
-                action: replace
-                target_label: debug_port
 
     extensions:
       sigv4auth:
