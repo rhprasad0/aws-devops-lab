@@ -72,7 +72,6 @@ spec:
                 target_label: __address__
               - action: labelmap
                 regex: __meta_kubernetes_pod_label_(.+)
-                replacement: $1
               - action: replace
                 source_labels:
                 - __meta_kubernetes_namespace
@@ -82,14 +81,19 @@ spec:
                 - __meta_kubernetes_pod_name
                 target_label: kubernetes_pod_name
 
+    extensions:
+      sigv4auth:
+        region: "${REGION}"
+        service: "aps"
+
     exporters:
       prometheusremotewrite:
         endpoint: "${AMP_ENDPOINT}"
         auth:
-          sigv4:
-            region: "${REGION}"
+          authenticator: sigv4auth
 
     service:
+      extensions: [sigv4auth]
       pipelines:
         metrics:
           receivers: [prometheus]
