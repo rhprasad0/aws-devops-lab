@@ -9,18 +9,17 @@ kind: ClusterRole
 metadata:
   name: adot-collector
 rules:
-- apiGroups: [""]
-  resources: ["nodes", "nodes/proxy", "services", "endpoints", "pods"]
-  verbs: ["get", "list", "watch"]
-- apiGroups: [""]
-  resources: ["configmaps"]
-  verbs: ["get"]
-- apiGroups: ["networking.k8s.io"]
-  resources: ["ingresses"]
-  verbs: ["get", "list", "watch"]
-- apiGroups: ["non-resource-urls"]
-  resources: ["/metrics"]
-  verbs: ["get"]
+  - apiGroups: [""]
+    resources: ["nodes", "nodes/proxy", "services", "endpoints", "pods"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    verbs: ["get"]
+  - apiGroups: ["networking.k8s.io"]
+    resources: ["ingresses"]
+    verbs: ["get", "list", "watch"]
+  - nonResourceURLs: ["/metrics"]
+    verbs: ["get"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
@@ -31,9 +30,9 @@ roleRef:
   kind: ClusterRole
   name: adot-collector
 subjects:
-- kind: ServiceAccount
-  name: adot-collector
-  namespace: opentelemetry-operator-system
+  - kind: ServiceAccount
+    name: adot-collector
+    namespace: opentelemetry-operator-system
 ---
 apiVersion: opentelemetry.io/v1alpha1
 kind: OpenTelemetryCollector
@@ -50,37 +49,50 @@ spec:
           global:
             scrape_interval: 60s
           scrape_configs:
+            # Static target to verify collector can scrape at all
+            # Using a known guestbook pod IP for testing
+            - job_name: 'static-test'
+              static_configs:
+              - targets: ['10.0.12.23:8000']
+                labels:
+                  app: 'guestbook-static-test'
+            
+            # Kubernetes pod discovery with simplified relabeling
             - job_name: 'kubernetes-pods'
               kubernetes_sd_configs:
               - role: pod
               relabel_configs:
-              - action: keep
+              # Keep only pods with prometheus.io/scrape=true
+              - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
+                action: keep
                 regex: true
-                source_labels:
-                - __meta_kubernetes_pod_annotation_prometheus_io_scrape
-              - action: replace
-                regex: (.+)
-                source_labels:
-                - __meta_kubernetes_pod_annotation_prometheus_io_path
+              # Set metrics path from annotation
+              - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
+                action: replace
                 target_label: __metrics_path__
-              # Replace the target address with pod_ip:metrics_port
-              # Use __meta_kubernetes_pod_ip directly for more reliable address construction
-              - action: replace
-                source_labels:
-                - __meta_kubernetes_pod_ip
-                - __meta_kubernetes_pod_annotation_prometheus_io_port
+                regex: (.+)
+              # CRITICAL FIX: The __address__ label from pod SD is pod_ip:container_port
+              # We need to replace the port with the annotation port if specified
+              # First, let's preserve the pod IP by extracting it
+              - source_labels: [__address__]
+                action: replace
+                regex: ([^:]+)(?::\d+)?
+                replacement: $1
+                target_label: __tmp_pod_ip
+              # Now construct the address using pod IP and annotation port
+              - source_labels: [__tmp_pod_ip, __meta_kubernetes_pod_annotation_prometheus_io_port]
+                action: replace
                 regex: (.+);(.+)
                 replacement: $1:$2
                 target_label: __address__
+              # Copy useful labels
               - action: labelmap
                 regex: __meta_kubernetes_pod_label_(.+)
-              - action: replace
-                source_labels:
-                - __meta_kubernetes_namespace
+              - source_labels: [__meta_kubernetes_namespace]
+                action: replace
                 target_label: kubernetes_namespace
-              - action: replace
-                source_labels:
-                - __meta_kubernetes_pod_name
+              - source_labels: [__meta_kubernetes_pod_name]
+                action: replace
                 target_label: kubernetes_pod_name
 
     extensions:
@@ -89,6 +101,11 @@ spec:
         service: "aps"
 
     exporters:
+      # Debug exporter to see what's being scraped
+      debug:
+        verbosity: detailed
+        sampling_initial: 5
+        sampling_thereafter: 200
       prometheusremotewrite:
         endpoint: "https://aps-workspaces.us-east-1.amazonaws.com/workspaces/ws-9eb9af5e-9081-4cc1-a39e-178834e6bc03/api/v1/remote_write"
         auth:
@@ -99,4 +116,4 @@ spec:
       pipelines:
         metrics:
           receivers: [prometheus]
-          exporters: [prometheusremotewrite]
+          exporters: [debug, prometheusremotewrite]
