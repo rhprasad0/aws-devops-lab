@@ -58,24 +58,18 @@ spec:
               # Keep only pods with prometheus.io/scrape=true
               - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
                 action: keep
-                regex: true
-              # Keep only the first port of each pod to avoid duplicate targets
-              # This prevents pods with multiple ports from being scraped multiple times
-              - source_labels: [__meta_kubernetes_pod_container_port_number]
-                action: keep
-                regex: (.+)
+                regex: "true"
               # Set metrics path from annotation (default: /metrics)
               - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
                 action: replace
                 target_label: __metrics_path__
                 regex: (.+)
-              # Replace address with pod IP and annotation port in a single rule
-              # Format: __address__ contains "ip:container_port", annotation contains "target_port"
-              # Regex captures IP from address and port from annotation, combines them
+              # Replace port in __address__ with the port from annotation
+              # __address__ format is "pod_ip:container_port", we want "pod_ip:annotation_port"
               - source_labels: [__address__, __meta_kubernetes_pod_annotation_prometheus_io_port]
                 action: replace
-                regex: ([^:]+)(?::\d+)?;(\d+)
-                replacement: $1:$2
+                regex: "([^:]+):[0-9]+;([0-9]+)"
+                replacement: "$1:$2"
                 target_label: __address__
               # Copy pod labels to metric labels
               - action: labelmap
