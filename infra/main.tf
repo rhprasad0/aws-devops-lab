@@ -130,6 +130,15 @@ module "eks" {
     vpc-cni = {
       before_compute = true
       most_recent    = true
+      # Enable prefix delegation to increase max pods per node
+      # t4g.medium: 17 pods (default) -> 110 pods (with prefix delegation)
+      # Each node reserves /28 prefixes (16 IPs) instead of individual IPs
+      configuration_values = jsonencode({
+        env = {
+          ENABLE_PREFIX_DELEGATION = "true"
+          WARM_PREFIX_TARGET       = "1"  # Keep 1 warm /28 prefix per ENI
+        }
+      })
     }
     eks-pod-identity-agent = {
       before_compute = true

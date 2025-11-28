@@ -56,6 +56,81 @@ resource "aws_iam_role_policy_attachment" "graviton_node_AmazonEC2ContainerRegis
   role       = aws_iam_role.graviton_node_group.name
 }
 
+# Launch template for Graviton nodes with prefix delegation support
+# This enables max-pods=110 for t4g.medium instances with prefix delegation
+#
+# WHY THIS IS NEEDED:
+# With prefix delegation enabled on VPC CNI, nodes can support more pods (110 vs 17)
+# but the kubelet max-pods setting must also be increased. For AL2023, this is done
+# via nodeadm configuration in user data.
+resource "aws_launch_template" "graviton" {
+  name_prefix = "${var.env}-graviton-"
+  
+  # User data for AL2023 using nodeadm configuration format
+  # Sets max-pods=110 for prefix delegation support on t4g.medium
+  # Reference: https://docs.aws.amazon.com/eks/latest/userguide/launch-templates.html
+  user_data = base64encode(<<-EOF
+MIME-Version: 1.0
+Content-Type: multipart/mixed; boundary="BOUNDARY"
+
+--BOUNDARY
+Content-Type: application/node.eks.aws
+
+---
+apiVersion: node.eks.aws/v1alpha1
+kind: NodeConfig
+spec:
+  cluster:
+    name: ${module.eks.cluster_name}
+    apiServerEndpoint: ${module.eks.cluster_endpoint}
+    certificateAuthority: ${module.eks.cluster_certificate_authority_data}
+    cidr: ${module.eks.cluster_service_cidr}
+  kubelet:
+    config:
+      maxPods: 110
+    flags:
+      - --max-pods=110
+
+--BOUNDARY--
+EOF
+  )
+  
+  # Block device for root volume
+  block_device_mappings {
+    device_name = "/dev/xvda"
+    ebs {
+      volume_size           = 20
+      volume_type           = "gp3"
+      delete_on_termination = true
+      encrypted             = true
+    }
+  }
+  
+  # Metadata options for IMDSv2 (required for security)
+  metadata_options {
+    http_endpoint               = "enabled"
+    http_tokens                 = "required"
+    http_put_response_hop_limit = 2
+  }
+  
+  tag_specifications {
+    resource_type = "instance"
+    tags = {
+      Name      = "${var.env}-graviton-node"
+      NodeType  = "graviton-arm64"
+      Component = "compute"
+    }
+  }
+  
+  tags = {
+    Name = "${var.env}-graviton-launch-template"
+  }
+  
+  lifecycle {
+    create_before_destroy = true
+  }
+}
+
 resource "aws_eks_node_group" "graviton" {
   cluster_name    = module.eks.cluster_name
   node_group_name = "graviton-main"
@@ -70,8 +145,11 @@ resource "aws_eks_node_group" "graviton" {
   # Match cluster version to avoid version skew
   version = "1.32"
   
-  # Disk size for node volumes
-  disk_size = 20
+  # Use launch template for custom max-pods with prefix delegation
+  launch_template {
+    id      = aws_launch_template.graviton.id
+    version = aws_launch_template.graviton.latest_version
+  }
   
   # Scaling configuration
   scaling_config {
@@ -107,7 +185,9 @@ resource "aws_eks_node_group" "graviton" {
   ]
   
   lifecycle {
-    create_before_destroy = true
+    # NOTE: create_before_destroy doesn't work with EKS node groups
+    # because node group names must be unique within a cluster.
+    # EKS handles rolling updates internally when the launch template changes.
     ignore_changes = [
       scaling_config[0].desired_size  # Allow manual/autoscaling adjustments
     ]
