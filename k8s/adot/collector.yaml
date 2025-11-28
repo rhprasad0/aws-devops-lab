@@ -101,11 +101,9 @@ spec:
         service: "aps"
 
     exporters:
-      # Debug exporter to see what's being scraped
-      debug:
+      # Logging exporter to see what's being scraped (debug not available in ADOT)
+      logging:
         verbosity: detailed
-        sampling_initial: 5
-        sampling_thereafter: 200
       prometheusremotewrite:
         endpoint: "https://aps-workspaces.us-east-1.amazonaws.com/workspaces/ws-9eb9af5e-9081-4cc1-a39e-178834e6bc03/api/v1/remote_write"
         auth:
@@ -116,4 +114,4 @@ spec:
       pipelines:
         metrics:
           receivers: [prometheus]
-          exporters: [debug, prometheusremotewrite]
+          exporters: [logging, prometheusremotewrite]
