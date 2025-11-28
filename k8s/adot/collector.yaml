@@ -63,12 +63,14 @@ spec:
                 source_labels:
                 - __meta_kubernetes_pod_annotation_prometheus_io_path
                 target_label: __metrics_path__
+              # Replace the target address with pod_ip:metrics_port
+              # Use __meta_kubernetes_pod_ip directly for more reliable address construction
               - action: replace
-                regex: ([^:]+)(?::\d+)?;(\d+)
-                replacement: $1:$2
                 source_labels:
-                - __address__
+                - __meta_kubernetes_pod_ip
                 - __meta_kubernetes_pod_annotation_prometheus_io_port
+                regex: (.+);(.+)
+                replacement: $1:$2
                 target_label: __address__
               - action: labelmap
                 regex: __meta_kubernetes_pod_label_(.+)
