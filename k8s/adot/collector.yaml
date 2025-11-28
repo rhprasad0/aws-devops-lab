@@ -72,7 +72,6 @@ spec:
                 target_label: __address__
               - action: labelmap
                 regex: __meta_kubernetes_pod_label_(.+)
-                replacement: $1
               - action: replace
                 source_labels:
                 - __meta_kubernetes_namespace
@@ -82,14 +81,19 @@ spec:
                 - __meta_kubernetes_pod_name
                 target_label: kubernetes_pod_name
 
+    extensions:
+      sigv4auth:
+        region: "us-east-1"
+        service: "aps"
+
     exporters:
       prometheusremotewrite:
         endpoint: "https://aps-workspaces.us-east-1.amazonaws.com/workspaces/ws-9eb9af5e-9081-4cc1-a39e-178834e6bc03/api/v1/remote_write"
         auth:
-          sigv4:
-            region: "us-east-1"
+          authenticator: sigv4auth
 
     service:
+      extensions: [sigv4auth]
       pipelines:
         metrics:
           receivers: [prometheus]
