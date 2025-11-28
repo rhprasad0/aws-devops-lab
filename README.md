@@ -579,54 +579,57 @@ eks-ephemeral-lab/
 **Cost:** Same as Week 8 (~$3.50/session)
 
 ---
-## Week 10 – Observability Part 1: Metrics & Dashboards
+## Week 10 – Observability Part 1: Managed Metrics & Dashboards
 
 **Time:** 10-12 hours
-**Goal:** Prometheus + Grafana with basic dashboards
+**Goal:** AWS Managed Prometheus (AMP) + Amazon Managed Grafana (AMG) using ADOT
 
 **Tasks**
-1. Install Prometheus:
-   - Option A: kube-prometheus-stack Helm chart (includes Grafana)
-   - Option B: Prometheus Operator + Grafana separately
-   - Use minimal retention (2 hours)
-   - Small PVC (5GB) or ephemeral storage
+1. **Create AMP Workspace (Terraform):**
+   - Resource: `aws_prometheus_workspace`
+   - Alias: `${var.env}-prometheus`
 
-2. Configure ServiceMonitors:
-   - Monitor your sample app (add `/metrics` endpoint)
-   - Monitor EKS nodes
-   - Monitor ALB (via CloudWatch exporter)
+2. **Create AMG Workspace (Terraform):**
+   - Resource: `aws_grafana_workspace`
+   - Authentication: `AWS_SSO` (requires IAM Identity Center)
+   - Permission type: `SERVICE_MANAGED`
+   - Role: Allow reading from AMP workspace
 
-3. Access Grafana:
-   - Port-forward or expose via Ingress
-   - Import dashboards:
-     - Kubernetes cluster monitoring
-     - ALB monitoring
-     - Application golden signals (latency, traffic, errors, saturation)
+3. **Install ADOT Collector (Terraform/Helm):**
+   - Create IAM Role (EKS Pod Identity): Allow `aps:RemoteWrite`, `aps:GetSeries`, `aps:GetLabels` to your AMP workspace ARN.
+   - Associate Role with EKS Pod Identity (replaces OIDC annotations).
+   - Install ADOT EKS Add-on or Helm chart.
+   - Configure ADOT pipeline (`opentelemetry-collector-crd`):
+     - Receivers: Prometheus (scrape config for pods/nodes)
+     - Exporters: Prometheus Remote Write (send to AMP endpoint)
 
-4. Create custom dashboard:
-   - Request rate by endpoint
-   - P50/P95/P99 latency
-   - Error rate
-   - Pod CPU/memory
+4. **Configure Grafana:**
+   - Log in to AMG URL via AWS SSO.
+   - Add Data Source: "Prometheus" → Select "AWS Managed Service for Prometheus" → Select your Region/Workspace.
+   - Import Dashboards:
+     - Kubernetes Cluster (via ADOT/Container Insights)
+     - Node Exporter
+     - Application Metrics
 
-5. Test:
-   - Generate load (hey, k6, or simple curl loop)
-   - Watch metrics update
-   - Query PromQL directly
+5. **Test:**
+   - Generate load on sample app.
+   - Verify metrics appear in AMG.
+   - Create custom dashboard for application golden signals (latency, traffic, errors, saturation).
 
 **Understand:**
-- Prometheus scrape model
-- ServiceMonitor vs PodMonitor
-- Basic PromQL queries
-- Grafana data source configuration
-
+- ADOT (AWS Distro for OpenTelemetry) vs standard Prometheus
+- Remote Write architecture (push vs pull)
+- Managed Grafana authentication (SSO) and data source integration
 
 **Security Focus:**
-- Include security-relevant metrics (4xx/5xx rates, anomalous traffic per endpoint) in Grafana dashboards alongside SLOs.
-- Lock down access to metrics and dashboards so they are not exposed publicly, even in the lab.
-- Use labels and naming to clearly distinguish between internal and internet-facing services when building dashboards.
+- Use EKS Pod Identity for the ADOT collector so it only has permission to write to your specific AMP workspace (simpler and more scalable than IRSA).
+- Control Grafana access via AWS IAM Identity Center (SSO) users/groups rather than shared passwords.
+- Ensure the AMG workspace is strictly accessible only to authenticated users in your organization.
 
-**Cost:** ~$4/session (add ~$0.50 for small EBS volume)
+**Cost:**
+- AMP: Pay per metric ingestion/query (very low for lab scale)
+- AMG: ~$9/editor/month (check for free trial)
+- ADOT: Standard pod compute costs
 
 ---
 ## Week 11 – Observability Part 2: Logs & Traces
