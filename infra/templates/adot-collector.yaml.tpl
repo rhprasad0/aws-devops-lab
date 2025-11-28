@@ -59,25 +59,23 @@ spec:
               - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
                 action: keep
                 regex: true
+              # Keep only the first port of each pod to avoid duplicate targets
+              # This prevents pods with multiple ports from being scraped multiple times
+              - source_labels: [__meta_kubernetes_pod_container_port_number]
+                action: keep
+                regex: (.+)
               # Set metrics path from annotation (default: /metrics)
               - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
                 action: replace
                 target_label: __metrics_path__
                 regex: (.+)
-              # CRITICAL: Construct target address from pod IP and annotation port
-              # The default __address__ from pod SD uses the container port, but we need
-              # the port specified in prometheus.io/port annotation instead.
-              # Step 1: Extract pod IP from __address__ (format: ip:port or just ip)
-              - source_labels: [__address__]
+              # Replace address with pod IP and annotation port in a single rule
+              # Format: __address__ contains "ip:container_port", annotation contains "target_port"
+              # Regex captures IP from address and port from annotation, combines them
+              - source_labels: [__address__, __meta_kubernetes_pod_annotation_prometheus_io_port]
                 action: replace
-                regex: ([^:]+)(?::\d+)?
-                replacement: $$1
-                target_label: __tmp_pod_ip
-              # Step 2: Combine pod IP with annotation port to form final address
-              - source_labels: [__tmp_pod_ip, __meta_kubernetes_pod_annotation_prometheus_io_port]
-                action: replace
-                regex: (.+);(.+)
-                replacement: $$1:$$2
+                regex: ([^:]+)(?::\d+)?;(\d+)
+                replacement: $1:$2
                 target_label: __address__
               # Copy pod labels to metric labels
               - action: labelmap
@@ -85,10 +83,10 @@ spec:
               # Add namespace and pod name as labels for easier querying
               - source_labels: [__meta_kubernetes_namespace]
                 action: replace
-                target_label: kubernetes_namespace
+                target_label: namespace
               - source_labels: [__meta_kubernetes_pod_name]
                 action: replace
-                target_label: kubernetes_pod_name
+                target_label: pod
 
     extensions:
       sigv4auth:
