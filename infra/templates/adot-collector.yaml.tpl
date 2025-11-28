@@ -65,11 +65,11 @@ spec:
                 target_label: __metrics_path__
                 regex: (.+)
               # WORKAROUND: Use replacement with regex capture groups
-              # The OTel prometheus receiver requires explicit regex even for simple copies
+              # The OTel prometheus receiver uses Go regex syntax ($1 not ${1})
               - source_labels: [__meta_kubernetes_pod_ip, __meta_kubernetes_pod_annotation_prometheus_io_port]
                 action: replace
                 regex: "(.+);(.+)"
-                replacement: "$${1}:$${2}"
+                replacement: $1:$2
                 target_label: __address__
               # Copy pod labels to metric labels
               - action: labelmap
