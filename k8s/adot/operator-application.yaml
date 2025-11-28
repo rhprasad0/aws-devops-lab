@@ -1,0 +1,29 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: adot-operator
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    chart: opentelemetry-operator
+    repoURL: https://open-telemetry.github.io/opentelemetry-helm-charts
+    targetRevision: 0.43.0
+    helm:
+      parameters:
+        - name: manager.collectorImage.repository
+          value: public.ecr.aws/aws-observability/aws-otel-collector
+        - name: manager.collectorImage.tag
+          value: v0.36.0
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: opentelemetry-operator-system
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+

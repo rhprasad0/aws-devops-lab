@@ -87,7 +87,7 @@ resource "aws_prometheus_workspace" "main" {
 # This is a great starting point - you can customize later if needed.
 
 data "aws_prometheus_default_scraper_configuration" "default" {
-  count = var.enable_prometheus ? 1 : 0
+  count = var.enable_prometheus && var.enable_managed_scraper ? 1 : 0
 }
 
 # -----------------------------------------------------------------------------
@@ -103,7 +103,7 @@ data "aws_prometheus_default_scraper_configuration" "default" {
 # 4. Sends scraped metrics to AMP workspace via AWS internal network
 
 resource "aws_prometheus_scraper" "eks" {
-  count = var.enable_prometheus ? 1 : 0
+  count = var.enable_prometheus && var.enable_managed_scraper ? 1 : 0
 
   alias = "${var.env}-eks-scraper"
 

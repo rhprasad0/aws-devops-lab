@@ -83,3 +83,16 @@ variable "guestbook_service_account" {
   type        = string
   default     = "guestbook-sa"
 }
+
+# ADOT configuration
+variable "enable_adot" {
+  description = "Enable AWS Distro for OpenTelemetry (ADOT) Collector"
+  type        = bool
+  default     = true
+}
+
+variable "enable_managed_scraper" {
+  description = "Enable Amazon Managed Service for Prometheus Scraper (Agentless)"
+  type        = bool
+  default     = false
+}
