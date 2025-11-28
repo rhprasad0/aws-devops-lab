@@ -49,15 +49,7 @@ spec:
           global:
             scrape_interval: 60s
           scrape_configs:
-            # Static target to verify collector can scrape at all
-            # Using a known guestbook pod IP for testing
-            - job_name: 'static-test'
-              static_configs:
-              - targets: ['10.0.12.23:8000']
-                labels:
-                  app: 'guestbook-static-test'
-            
-            # Kubernetes pod discovery with simplified relabeling
+            # Kubernetes pod discovery - scrapes pods with prometheus.io/scrape=true annotation
             - job_name: 'kubernetes-pods'
               kubernetes_sd_configs:
               - role: pod
@@ -66,28 +58,30 @@ spec:
               - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
                 action: keep
                 regex: true
-              # Set metrics path from annotation
+              # Set metrics path from annotation (default: /metrics)
               - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
                 action: replace
                 target_label: __metrics_path__
                 regex: (.+)
-              # CRITICAL FIX: The __address__ label from pod SD is pod_ip:container_port
-              # We need to replace the port with the annotation port if specified
-              # First, let's preserve the pod IP by extracting it
+              # CRITICAL: Construct target address from pod IP and annotation port
+              # The default __address__ from pod SD uses the container port, but we need
+              # the port specified in prometheus.io/port annotation instead.
+              # Step 1: Extract pod IP from __address__ (format: ip:port or just ip)
               - source_labels: [__address__]
                 action: replace
                 regex: ([^:]+)(?::\d+)?
                 replacement: $1
                 target_label: __tmp_pod_ip
-              # Now construct the address using pod IP and annotation port
+              # Step 2: Combine pod IP with annotation port to form final address
               - source_labels: [__tmp_pod_ip, __meta_kubernetes_pod_annotation_prometheus_io_port]
                 action: replace
                 regex: (.+);(.+)
                 replacement: $1:$2
                 target_label: __address__
-              # Copy useful labels
+              # Copy pod labels to metric labels
               - action: labelmap
                 regex: __meta_kubernetes_pod_label_(.+)
+              # Add namespace and pod name as labels for easier querying
               - source_labels: [__meta_kubernetes_namespace]
                 action: replace
                 target_label: kubernetes_namespace
@@ -101,9 +95,6 @@ spec:
         service: "aps"
 
     exporters:
-      # Logging exporter to see what's being scraped (debug not available in ADOT)
-      logging:
-        verbosity: detailed
       prometheusremotewrite:
         endpoint: "https://aps-workspaces.us-east-1.amazonaws.com/workspaces/ws-9eb9af5e-9081-4cc1-a39e-178834e6bc03/api/v1/remote_write"
         auth:
@@ -114,4 +105,4 @@ spec:
       pipelines:
         metrics:
           receivers: [prometheus]
-          exporters: [logging, prometheusremotewrite]
+          exporters: [prometheusremotewrite]

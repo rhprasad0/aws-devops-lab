@@ -50,37 +50,44 @@ spec:
           global:
             scrape_interval: 60s
           scrape_configs:
+            # Kubernetes pod discovery - scrapes pods with prometheus.io/scrape=true annotation
             - job_name: 'kubernetes-pods'
               kubernetes_sd_configs:
               - role: pod
               relabel_configs:
-              - action: keep
+              # Keep only pods with prometheus.io/scrape=true
+              - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
+                action: keep
                 regex: true
-                source_labels:
-                - __meta_kubernetes_pod_annotation_prometheus_io_scrape
-              - action: replace
-                regex: (.+)
-                source_labels:
-                - __meta_kubernetes_pod_annotation_prometheus_io_path
+              # Set metrics path from annotation (default: /metrics)
+              - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
+                action: replace
                 target_label: __metrics_path__
-              # Replace the target address with pod_ip:metrics_port
-              # Use __meta_kubernetes_pod_ip directly for more reliable address construction
-              - action: replace
-                source_labels:
-                - __meta_kubernetes_pod_ip
-                - __meta_kubernetes_pod_annotation_prometheus_io_port
+                regex: (.+)
+              # CRITICAL: Construct target address from pod IP and annotation port
+              # The default __address__ from pod SD uses the container port, but we need
+              # the port specified in prometheus.io/port annotation instead.
+              # Step 1: Extract pod IP from __address__ (format: ip:port or just ip)
+              - source_labels: [__address__]
+                action: replace
+                regex: ([^:]+)(?::\d+)?
+                replacement: $$1
+                target_label: __tmp_pod_ip
+              # Step 2: Combine pod IP with annotation port to form final address
+              - source_labels: [__tmp_pod_ip, __meta_kubernetes_pod_annotation_prometheus_io_port]
+                action: replace
                 regex: (.+);(.+)
                 replacement: $$1:$$2
                 target_label: __address__
+              # Copy pod labels to metric labels
               - action: labelmap
                 regex: __meta_kubernetes_pod_label_(.+)
-              - action: replace
-                source_labels:
-                - __meta_kubernetes_namespace
+              # Add namespace and pod name as labels for easier querying
+              - source_labels: [__meta_kubernetes_namespace]
+                action: replace
                 target_label: kubernetes_namespace
-              - action: replace
-                source_labels:
-                - __meta_kubernetes_pod_name
+              - source_labels: [__meta_kubernetes_pod_name]
+                action: replace
                 target_label: kubernetes_pod_name
 
     extensions:
