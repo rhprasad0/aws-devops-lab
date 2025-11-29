@@ -11,7 +11,7 @@
 # IAM Role for CloudWatch Agent (using EKS Pod Identity)
 resource "aws_iam_role" "cloudwatch_observability" {
   name = "${var.env}-cloudwatch-observability"
-  
+
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
@@ -27,7 +27,7 @@ resource "aws_iam_role" "cloudwatch_observability" {
       }
     ]
   })
-  
+
   tags = {
     Name = "${var.env}-cloudwatch-observability"
   }
@@ -58,14 +58,14 @@ resource "aws_eks_pod_identity_association" "cloudwatch_agent" {
 resource "aws_eks_addon" "cloudwatch_observability" {
   cluster_name = module.eks.cluster_name
   addon_name   = "amazon-cloudwatch-observability"
-  
+
   # Use latest stable version for EKS 1.32
   addon_version = "v4.7.0-eksbuild.1"
-  
+
   # Resolve conflicts by overwriting (add-on takes precedence)
   resolve_conflicts_on_create = "OVERWRITE"
   resolve_conflicts_on_update = "OVERWRITE"
-  
+
   # Configuration to customize the add-on behavior
   # Enables: Container Insights (metrics), Fluent Bit (logs), and X-Ray (traces)
   #
@@ -108,16 +108,59 @@ resource "aws_eks_addon" "cloudwatch_observability" {
       enabled = true
     }
   })
-  
+
   depends_on = [
     aws_eks_pod_identity_association.cloudwatch_agent,
     aws_iam_role_policy_attachment.cloudwatch_agent_server_policy,
     aws_iam_role_policy_attachment.xray_daemon_write_access,
     module.eks
   ]
-  
+
   tags = {
     Name = "${var.env}-cloudwatch-observability"
+  }
+}
+
+# =============================================================================
+# Log Retention Configuration (Week 11 Security)
+# =============================================================================
+# Container Insights creates log groups automatically. We manage retention
+# separately to control costs and comply with security requirements.
+# Retention: 7 days balances cost with incident investigation needs.
+
+resource "aws_cloudwatch_log_group" "container_insights_application" {
+  name              = "/aws/containerinsights/${module.eks.cluster_name}/application"
+  retention_in_days = 7
+
+  tags = {
+    Name = "container-insights-application"
+  }
+}
+
+resource "aws_cloudwatch_log_group" "container_insights_dataplane" {
+  name              = "/aws/containerinsights/${module.eks.cluster_name}/dataplane"
+  retention_in_days = 7
+
+  tags = {
+    Name = "container-insights-dataplane"
+  }
+}
+
+resource "aws_cloudwatch_log_group" "container_insights_host" {
+  name              = "/aws/containerinsights/${module.eks.cluster_name}/host"
+  retention_in_days = 7
+
+  tags = {
+    Name = "container-insights-host"
+  }
+}
+
+resource "aws_cloudwatch_log_group" "container_insights_performance" {
+  name              = "/aws/containerinsights/${module.eks.cluster_name}/performance"
+  retention_in_days = 7
+
+  tags = {
+    Name = "container-insights-performance"
   }
 }
 
@@ -125,10 +168,10 @@ resource "aws_eks_addon" "cloudwatch_observability" {
 output "cloudwatch_log_groups" {
   description = "CloudWatch Log Groups created by Container Insights"
   value = {
-    application = "/aws/containerinsights/${module.eks.cluster_name}/application"
-    host        = "/aws/containerinsights/${module.eks.cluster_name}/host"
-    dataplane   = "/aws/containerinsights/${module.eks.cluster_name}/dataplane"
-    performance = "/aws/containerinsights/${module.eks.cluster_name}/performance"
+    application = aws_cloudwatch_log_group.container_insights_application.name
+    host        = aws_cloudwatch_log_group.container_insights_host.name
+    dataplane   = aws_cloudwatch_log_group.container_insights_dataplane.name
+    performance = aws_cloudwatch_log_group.container_insights_performance.name
   }
 }
 
