@@ -31,12 +31,19 @@ generatorOptions:
 configMapGenerator:
   - name: guestbook-config
     literals:
+      # Application configuration
       - AWS_REGION=us-east-1
       - DYNAMODB_TABLE_NAME=a2a-guestbook-messages
       - API_KEYS_SECRET_NAME=a2a-guestbook/api-keys
       - RATE_LIMIT_PER_MINUTE=10
       - LOG_LEVEL=INFO
       - PORT=8000
+      # OpenTelemetry/X-Ray Configuration (Week 11)
+      - OTEL_SERVICE_NAME=guestbook
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://cloudwatch-agent.amazon-cloudwatch:4317
+      - OTEL_TRACES_SAMPLER=always_on
+      - OTEL_PROPAGATORS=xray,tracecontext,baggage
+      - ENVIRONMENT=dev
 
 # Common labels
 commonLabels:
