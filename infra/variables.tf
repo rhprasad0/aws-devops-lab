@@ -84,15 +84,16 @@ variable "guestbook_service_account" {
   default     = "guestbook-sa"
 }
 
-# ADOT configuration
-variable "enable_adot" {
-  description = "Enable AWS Distro for OpenTelemetry (ADOT) Collector"
-  type        = bool
-  default     = true
-}
-
-variable "enable_managed_scraper" {
-  description = "Enable Amazon Managed Service for Prometheus Scraper (Agentless)"
-  type        = bool
-  default     = false
-}
+# =============================================================================
+# Observability Configuration (Week 10)
+# =============================================================================
+# NOTE: AMP (Amazon Managed Prometheus) and AMG (Amazon Managed Grafana) were
+# removed due to cost (~$20/day with default scrape config). 
+#
+# For observability in remaining weeks, use:
+# - CloudWatch Container Insights (optional, ~$3-5/month)
+# - CloudWatch Logs for application logs (Week 11)
+# - CloudWatch Metrics for AWS service metrics (SQS, RDS, etc.)
+#
+# The deleted files were: prometheus.tf, grafana.tf, adot.tf
+# =============================================================================

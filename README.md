@@ -36,19 +36,14 @@ make down    # Destroy everything
 
 ## Remaining Weeks
 
-### Week 10 – Observability: Metrics & Dashboards 🚧 BLOCKED
-**Goal:** AMP + AMG + ADOT for metrics collection
+### Week 10 – Observability: Metrics ⚠️ DESCOPED
+**Goal:** ~~AMP + AMG + ADOT~~ → CloudWatch Container Insights
 
-- [x] Create AMP workspace (Terraform)
-- [x] Create AMG workspace with SSO auth
-- [x] Install ADOT Collector with EKS Pod Identity
-- [x] Configure Prometheus scraping → AMP remote write (container metrics working)
-- [x] Import Grafana dashboards (cluster, node, app golden signals)
-- [ ] **BLOCKED:** Application metrics scraping (see `docs/week10-guestbook-metrics-investigation.md`)
+AMP was ~$20/day (too expensive). Switched to Container Insights via `amazon-cloudwatch-observability` addon.
 
-**Blocker:** ADOT Prometheus receiver v0.36.0 relabel_configs fail to construct `__address__` from `__meta_kubernetes_pod_ip` + annotation port. Multiple syntax variants tested; all produce `instance=":"`. Container metrics work via cAdvisor; only custom app metrics (e.g., `http_requests_total`) are affected. Options: static_configs workaround, switch to kube-prometheus-stack, or file ADOT bug.
+**Note:** Before descoping, hit ADOT bug where relabel_configs couldn't construct `__address__` for custom app metrics. See `docs/week10-guestbook-metrics-investigation.md`.
 
-**Cost:** ~$4/session (AMP ingestion + AMG ~$9/editor/month)
+**Cost:** ~$3-5/month
 
 ---
 
@@ -187,7 +182,6 @@ k8s/             # Helm/manifests
   argocd/        # Argo CD config + Applications
   guestbook/     # Sample app
 scripts/         # up.sh, down.sh
-dashboards/      # Grafana JSON
 docs/            # Week-specific notes
 ```
 
