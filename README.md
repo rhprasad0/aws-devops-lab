@@ -15,7 +15,7 @@ make down    # Destroy everything
 
 ---
 
-## Completed (Weeks 0-9)
+## Completed (Weeks 0-11)
 
 | Week | Topic | Status |
 |------|-------|--------|
@@ -29,6 +29,8 @@ make down    # Destroy everything
 | 7 | Buffer Week | ✅ |
 | 8 | CI/CD Build (ECR, GitHub Actions) | ✅ |
 | 9 | CI/CD Deploy (GitOps flow) | ✅ |
+| 10 | Observability: Metrics (Container Insights) | ✅ |
+| 11 | Observability: Logs & Traces | ✅ |
 
 **State Backend:** S3 `ryan-eks-lab-tfstate` + DynamoDB `eks-lab-tfstate-lock`
 
@@ -36,7 +38,7 @@ make down    # Destroy everything
 
 ## Remaining Weeks
 
-### Week 10 – Observability: Metrics ⚠️ DESCOPED
+### Week 10 – Observability: Metrics ✅
 **Goal:** ~~AMP + AMG + ADOT~~ → CloudWatch Container Insights
 
 AMP was ~$20/day (too expensive). Switched to Container Insights via `amazon-cloudwatch-observability` addon.
@@ -47,14 +49,14 @@ AMP was ~$20/day (too expensive). Switched to Container Insights via `amazon-clo
 
 ---
 
-### Week 11 – Observability: Logs & Traces
+### Week 11 – Observability: Logs & Traces ✅
 **Goal:** Centralized logging and distributed tracing
 
-- [ ] Install Fluent Bit DaemonSet → CloudWatch Logs or Loki
-- [ ] Configure log parsing and filters
-- [ ] Install OpenTelemetry Collector for tracing → X-Ray or Jaeger
-- [ ] Instrument sample app with trace spans
-- [ ] Correlate metrics → logs → traces
+- [x] Fluent Bit via `amazon-cloudwatch-observability` addon → CloudWatch Logs
+- [x] Structured JSON logging in guestbook app (user, action, trace_id, client_ip)
+- [x] X-Ray tracing configured via CloudWatch Agent OTLP endpoints
+- [x] Log retention set to 7 days (Terraform-managed)
+- [x] Security review: GuardDuty findings triage, CloudTrail review
 
 **Cost:** ~$5/session (CloudWatch Logs ~$0.50/GB)
 
