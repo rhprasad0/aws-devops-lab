@@ -483,13 +483,9 @@ resource "aws_cloudwatch_event_target" "karpenter_state_change" {
 # Karpenter discovers subnets and security groups by tags.
 # We need to tag the private subnets and cluster security group.
 
-resource "aws_ec2_tag" "private_subnet_karpenter" {
-  count = var.enable_karpenter ? length(module.vpc.private_subnets) : 0
-
-  resource_id = module.vpc.private_subnets[count.index]
-  key         = "karpenter.sh/discovery"
-  value       = module.eks.cluster_name
-}
+# Note: Private subnet tags are managed via the VPC module's private_subnet_tags
+# in main.tf to avoid conflicts. The karpenter.sh/discovery tag is conditionally
+# added there when enable_karpenter = true.
 
 resource "aws_ec2_tag" "cluster_security_group_karpenter" {
   count = var.enable_karpenter ? 1 : 0
@@ -511,7 +507,6 @@ resource "helm_release" "karpenter" {
     aws_eks_pod_identity_association.karpenter,
     aws_eks_access_entry.karpenter_node,
     aws_iam_instance_profile.karpenter_node,
-    aws_ec2_tag.private_subnet_karpenter,
     aws_ec2_tag.cluster_security_group_karpenter
   ]
 

@@ -92,10 +92,14 @@ module "vpc" {
     "kubernetes.io/cluster/${var.env}-eks" = "shared"
   }
   
-  private_subnet_tags = {
-    "kubernetes.io/role/internal-elb" = "1"
-    "kubernetes.io/cluster/${var.env}-eks" = "shared"
-  }
+  private_subnet_tags = merge(
+    {
+      "kubernetes.io/role/internal-elb"       = "1"
+      "kubernetes.io/cluster/${var.env}-eks"  = "shared"
+    },
+    # Karpenter discovery tag (Week 12) - only add if Karpenter is enabled
+    var.enable_karpenter ? { "karpenter.sh/discovery" = "${var.env}-eks" } : {}
+  )
 }
 
 # EKS Cluster
