@@ -49,6 +49,34 @@ data "aws_partition" "current" {}
 data "aws_region" "current" {}
 
 # -----------------------------------------------------------------------------
+# EC2 Spot Service-Linked Role
+# -----------------------------------------------------------------------------
+# AWS requires a service-linked role to manage Spot instances. This role is
+# created once per account and allows EC2 to:
+# - Request and manage Spot capacity
+# - Handle Spot interruptions
+# - Access Spot pricing information
+#
+# Note: This role can only exist once per account. If it already exists,
+# Terraform will import it. The role is account-wide, not region-specific.
+
+resource "aws_iam_service_linked_role" "spot" {
+  count = var.enable_karpenter ? 1 : 0
+
+  aws_service_name = "spot.amazonaws.com"
+  description      = "Service-linked role for EC2 Spot Instances - enables Karpenter Spot provisioning"
+
+  # This role is managed by AWS and cannot be customized
+  # It will be named: AWSServiceRoleForEC2Spot
+
+  tags = {
+    Name      = "AWSServiceRoleForEC2Spot"
+    Component = "karpenter"
+    Week      = "12"
+  }
+}
+
+# -----------------------------------------------------------------------------
 # IAM Role for Karpenter Controller (Pod Identity)
 # -----------------------------------------------------------------------------
 # This role allows the Karpenter controller pod to:
