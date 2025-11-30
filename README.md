@@ -2,7 +2,7 @@
 
 Production-style AWS/EKS DevOps learning platform.
 
-**Timeline:** Part-time weekends (12 hrs/week) | **Budget:** $250/month | **Progress:** Weeks 0-9 ✅
+**Timeline:** Part-time weekends (12 hrs/week) | **Budget:** $250/month | **Progress:** Weeks 0-12 ✅
 
 ---
 
@@ -15,7 +15,7 @@ make down    # Destroy everything
 
 ---
 
-## Completed (Weeks 0-11)
+## Completed (Weeks 0-12)
 
 | Week | Topic | Status |
 |------|-------|--------|
@@ -26,11 +26,12 @@ make down    # Destroy everything
 | 4 | AWS Load Balancer Controller | ✅ |
 | 5 | ExternalDNS | ✅ |
 | 6 | TLS (cert-manager) | ✅ |
-| 7 | Buffer Week | ✅ |
-| 8 | CI/CD Build (ECR, GitHub Actions) | ✅ |
-| 9 | CI/CD Deploy (GitOps flow) | ✅ |
-| 10 | Observability: Metrics (Container Insights) | ✅ |
-| 11 | Observability: Logs & Traces | ✅ |
+| 7 | CI/CD Build (ECR, GitHub Actions) | ✅ |
+| 8 | CI/CD Deploy (GitOps flow) | ✅ |
+| 9 | Observability: Metrics (Container Insights) | ✅ |
+| 10 | Observability: Logs & Traces | ✅ |
+| 11 | Scaling: Karpenter | ✅ |
+| 12 | Stateful: DynamoDB | ✅ |
 
 **State Backend:** S3 `ryan-eks-lab-tfstate` + DynamoDB `eks-lab-tfstate-lock`
 
@@ -62,30 +63,21 @@ AMP was ~$20/day (too expensive). Switched to Container Insights via `amazon-clo
 
 ---
 
-### Week 12 – Scaling: Karpenter
+### Week 12 – Scaling: Karpenter ✅
 **Goal:** Automatic node provisioning
 
-- [ ] Create Karpenter IAM role (IRSA)
-- [ ] Install Karpenter Helm chart
-- [ ] Create NodePool (Spot + On-Demand, t3/t4g families)
-- [ ] Scale down static node groups
-- [ ] Test scale-out/scale-in with replica changes
+- [x] Create Karpenter IAM role (Pod Identity, not IRSA)
+- [x] Install Karpenter Helm chart (v1.0.8)
+- [x] Create NodePool (Spot + On-Demand, t4g/m6g/c6g Graviton families)
+- [x] Create EC2NodeClass (AL2023, 20GB gp3, IMDSv2)
+- [x] SQS queue for Spot interruption handling
+- [x] Consolidation policy for cost optimization
 
 **Cost:** ~$4/session (potential Spot savings)
 
 ---
 
-### Week 13 – Buffer Week
-**Goal:** Consolidation and catch-up
-
-- [ ] Refactor Helm charts, standardize labels
-- [ ] Cost review via Cost Explorer
-- [ ] Security audit: privileged pods, hostPath, IRSA usage
-- [ ] Research Kyverno vs OPA Gatekeeper
-
----
-
-### Week 14 – Security & Policy Enforcement
+### Week 13 – Security & Policy Enforcement
 **Goal:** Admission control and secrets management
 
 - [ ] Install Kyverno
@@ -98,20 +90,7 @@ AMP was ~$20/day (too expensive). Switched to Container Insights via `amazon-clo
 
 ---
 
-### Week 15 – Stateful: RDS/Aurora
-**Goal:** App connected to managed database
-
-- [ ] Add Aurora Serverless v2 (0.5-1 ACU, private subnets)
-- [ ] Store credentials in Secrets Manager
-- [ ] Sync via External Secrets Operator
-- [ ] Update app: DB client, health check, read/write endpoints
-- [ ] Verify ephemeral cleanup
-
-**Cost:** ~$10-15/session (Aurora ~$0.12/ACU-hour)
-
----
-
-### Week 16 – Async: SQS/SNS Workers
+### Week 14 – Async: SQS/SNS Workers
 **Goal:** Event-driven architecture
 
 - [ ] Add SQS queue + DLQ, SNS topic (Terraform)
@@ -124,20 +103,19 @@ AMP was ~$20/day (too expensive). Switched to Container Insights via `amazon-clo
 
 ---
 
-### Week 17 – Resilience & Chaos
+### Week 15 – Resilience & Chaos
 **Goal:** Understand failure modes
 
 - [ ] Add PodDisruptionBudgets
 - [ ] Manual chaos: delete pods, drain nodes
 - [ ] AWS FIS experiment: terminate EC2 instance
-- [ ] Test Aurora failover
 - [ ] Document runbooks
 
 **Cost:** ~$12/session
 
 ---
 
-### Week 18 – EKS Upgrade
+### Week 16 – EKS Upgrade
 **Goal:** Safe upgrade procedures
 
 - [ ] Research deprecations for next EKS version
@@ -150,7 +128,7 @@ AMP was ~$20/day (too expensive). Switched to Container Insights via `amazon-clo
 
 ---
 
-### Week 19 – Multi-Region & DR
+### Week 17 – Multi-Region & DR
 **Goal:** Basic disaster recovery
 
 - [ ] Create minimal stack in second region
@@ -163,7 +141,7 @@ AMP was ~$20/day (too expensive). Switched to Container Insights via `amazon-clo
 
 ---
 
-### Week 20 – Cost Optimization & Wrap-Up
+### Week 18 – Cost Optimization & Wrap-Up
 **Goal:** Production-ready cost controls and documentation
 
 - [ ] Cost review by tag in Cost Explorer
@@ -173,6 +151,20 @@ AMP was ~$20/day (too expensive). Switched to Container Insights via `amazon-clo
 - [ ] Complete README with runbooks
 
 **Cost:** ~$6/session
+
+---
+
+## Success Criteria (Week 18)
+
+✅ Spin up full platform in <30 min  
+✅ Deploy via GitOps, zero manual kubectl  
+✅ Automatic HTTPS + DNS  
+✅ Metrics, logs, traces observable  
+✅ Graceful failure handling  
+✅ Security policies enforced  
+✅ DB + queue connectivity  
+✅ Destroy cleanly with one command  
+✅ Understand and explain every component
 
 ---
 
@@ -203,16 +195,3 @@ All resources tagged with: `project`, `env`, `owner`, `created_at`, `ttl_hours`
 - HTTPS for public endpoints
 - No 0.0.0.0/0 except documented ALB
 
----
-
-## Success Criteria (Week 20)
-
-✅ Spin up full platform in <30 min  
-✅ Deploy via GitOps, zero manual kubectl  
-✅ Automatic HTTPS + DNS  
-✅ Metrics, logs, traces observable  
-✅ Graceful failure handling  
-✅ Security policies enforced  
-✅ DB + queue connectivity  
-✅ Destroy cleanly with one command  
-✅ Understand and explain every component
