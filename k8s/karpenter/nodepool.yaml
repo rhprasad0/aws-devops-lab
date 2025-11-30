@@ -1,0 +1,72 @@
+# =============================================================================
+# NodePool - Defines WHAT kinds of nodes Karpenter can provision
+# =============================================================================
+# This resource tells Karpenter:
+# - What instance types/sizes to use
+# - Spot vs On-Demand preferences
+# - Resource limits (cost controls)
+# - Consolidation behavior
+#
+# Apply after EC2NodeClass:
+#   kubectl apply -f k8s/karpenter/nodepool.yaml
+# =============================================================================
+apiVersion: karpenter.sh/v1
+kind: NodePool
+metadata:
+  name: default
+spec:
+  # Template for nodes created by this pool
+  template:
+    metadata:
+      labels:
+        karpenter.sh/managed: "true"
+        node-type: karpenter
+    spec:
+      # Reference the EC2NodeClass for AWS-specific config
+      nodeClassRef:
+        group: karpenter.k8s.aws
+        kind: EC2NodeClass
+        name: default
+
+      # Instance requirements - cost-optimized for learning lab
+      requirements:
+        # Capacity type: prefer Spot for 60-90% cost savings
+        # Falls back to On-Demand if Spot unavailable
+        - key: karpenter.sh/capacity-type
+          operator: In
+          values: ["spot", "on-demand"]
+        
+        # Architecture: ARM64 (Graviton) for ~20% cost savings over x86
+        - key: kubernetes.io/arch
+          operator: In
+          values: ["arm64"]
+        
+        # Instance families: budget-friendly Graviton instances
+        # t4g: burstable, m6g/m7g: general purpose, c6g/c7g: compute, r6g: memory
+        - key: karpenter.k8s.aws/instance-family
+          operator: In
+          values: ["t4g", "m6g", "m7g", "c6g", "c7g", "r6g"]
+        
+        # Instance sizes: small to medium for learning lab
+        - key: karpenter.k8s.aws/instance-size
+          operator: In
+          values: ["small", "medium", "large"]
+
+      # Expire nodes after 24 hours (forces refresh, good for security)
+      expireAfter: 24h
+
+  # Disruption settings - aggressive consolidation for cost savings
+  disruption:
+    # Consolidate when nodes are empty OR underutilized
+    consolidationPolicy: WhenEmptyOrUnderutilized
+    # Wait 30 seconds before consolidating (allows for pod scheduling)
+    consolidateAfter: 30s
+
+  # Resource limits - CRITICAL for cost control!
+  # Prevents runaway costs if something goes wrong
+  limits:
+    cpu: "20"       # Max 20 vCPUs total across all Karpenter nodes
+    memory: "40Gi"  # Max 40 GiB memory total
+
+  # Weight for this NodePool (higher = preferred when multiple pools exist)
+  weight: 100

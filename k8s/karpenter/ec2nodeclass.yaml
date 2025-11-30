@@ -1,0 +1,59 @@
+# =============================================================================
+# EC2NodeClass - Defines AWS-specific node configuration for Karpenter
+# =============================================================================
+# This resource tells Karpenter HOW to configure EC2 instances:
+# - Which AMI to use
+# - What IAM role to assign
+# - Which subnets and security groups to use
+# - Block device (EBS) configuration
+#
+# Apply after Karpenter is installed:
+#   kubectl apply -f k8s/karpenter/ec2nodeclass.yaml
+# =============================================================================
+apiVersion: karpenter.k8s.aws/v1
+kind: EC2NodeClass
+metadata:
+  name: default
+spec:
+  # AMI selection - use EKS-optimized AL2023
+  # al2023@latest automatically picks the latest EKS-optimized Amazon Linux 2023 AMI
+  amiSelectorTerms:
+    - alias: al2023@latest
+
+  # IAM role for nodes - must match the role created in Terraform
+  role: dev-karpenter-node-role
+
+  # Subnet discovery - finds subnets tagged with karpenter.sh/discovery
+  subnetSelectorTerms:
+    - tags:
+        karpenter.sh/discovery: dev-eks
+
+  # Security group discovery - finds SGs tagged with karpenter.sh/discovery
+  securityGroupSelectorTerms:
+    - tags:
+        karpenter.sh/discovery: dev-eks
+
+  # Block device configuration - 20GB gp3 root volume
+  blockDeviceMappings:
+    - deviceName: /dev/xvda
+      ebs:
+        volumeSize: 20Gi
+        volumeType: gp3
+        encrypted: true
+        deleteOnTermination: true
+
+  # IMDSv2 required for security (prevents SSRF attacks)
+  metadataOptions:
+    httpEndpoint: enabled
+    httpProtocolIPv6: disabled
+    httpPutResponseHopLimit: 2
+    httpTokens: required
+
+  # Tags applied to EC2 instances
+  tags:
+    Name: dev-karpenter-node
+    Component: karpenter
+    Week: "12"
+    project: eks-ephemeral-lab
+    env: dev
+    owner: ryan
