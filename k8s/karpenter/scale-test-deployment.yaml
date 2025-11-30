@@ -33,7 +33,7 @@ metadata:
     app: inflate
     purpose: karpenter-testing
 spec:
-  replicas: 10
+  replicas: 1
   selector:
     matchLabels:
       app: inflate
