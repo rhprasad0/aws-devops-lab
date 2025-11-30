@@ -30,7 +30,7 @@ variable "enable_karpenter" {
 variable "karpenter_version" {
   description = "Karpenter Helm chart version"
   type        = string
-  default     = "1.0.8"  # Latest stable v1.0.x as of Nov 2024
+  default     = "1.0.8" # Latest stable v1.0.x as of Nov 2024
 }
 
 variable "karpenter_namespace" {
@@ -123,9 +123,9 @@ resource "aws_iam_policy" "karpenter_controller" {
       },
       # EC2: Conditional instance termination (only Karpenter-managed nodes)
       {
-        Sid    = "EC2TerminateKarpenterNodes"
-        Effect = "Allow"
-        Action = "ec2:TerminateInstances"
+        Sid      = "EC2TerminateKarpenterNodes"
+        Effect   = "Allow"
+        Action   = "ec2:TerminateInstances"
         Resource = "*"
         Condition = {
           StringLike = {
@@ -135,9 +135,9 @@ resource "aws_iam_policy" "karpenter_controller" {
       },
       # IAM: Pass role to EC2 instances
       {
-        Sid    = "PassNodeRole"
-        Effect = "Allow"
-        Action = "iam:PassRole"
+        Sid      = "PassNodeRole"
+        Effect   = "Allow"
+        Action   = "iam:PassRole"
         Resource = aws_iam_role.karpenter_node[0].arn
         Condition = {
           StringEquals = {
@@ -146,6 +146,7 @@ resource "aws_iam_policy" "karpenter_controller" {
         }
       },
       # IAM: Create instance profile for nodes
+      # Karpenter v1.0+ creates instance profiles with pattern: {cluster-name}_{hash}
       {
         Sid    = "InstanceProfileManagement"
         Effect = "Allow"
@@ -157,27 +158,27 @@ resource "aws_iam_policy" "karpenter_controller" {
           "iam:RemoveRoleFromInstanceProfile",
           "iam:TagInstanceProfile"
         ]
-        Resource = "arn:${data.aws_partition.current.partition}:iam::${data.aws_caller_identity.current.account_id}:instance-profile/KarpenterNodeInstanceProfile-*"
+        Resource = "arn:${data.aws_partition.current.partition}:iam::${data.aws_caller_identity.current.account_id}:instance-profile/${module.eks.cluster_name}_*"
       },
       # SSM: Read EKS-optimized AMI parameters
       {
-        Sid    = "SSMReadAMI"
-        Effect = "Allow"
-        Action = "ssm:GetParameter"
+        Sid      = "SSMReadAMI"
+        Effect   = "Allow"
+        Action   = "ssm:GetParameter"
         Resource = "arn:${data.aws_partition.current.partition}:ssm:${data.aws_region.current.id}::parameter/aws/service/eks/optimized-ami/*"
       },
       # EKS: Describe cluster for configuration
       {
-        Sid    = "EKSDescribeCluster"
-        Effect = "Allow"
-        Action = "eks:DescribeCluster"
+        Sid      = "EKSDescribeCluster"
+        Effect   = "Allow"
+        Action   = "eks:DescribeCluster"
         Resource = module.eks.cluster_arn
       },
       # Pricing: Get on-demand pricing for cost optimization
       {
-        Sid    = "PricingAccess"
-        Effect = "Allow"
-        Action = "pricing:GetProducts"
+        Sid      = "PricingAccess"
+        Effect   = "Allow"
+        Action   = "pricing:GetProducts"
         Resource = "*"
       },
       # SQS: Handle Spot interruption notifications (optional but recommended)
@@ -336,7 +337,7 @@ resource "aws_sqs_queue" "karpenter_interruption" {
   count = var.enable_karpenter ? 1 : 0
 
   name                      = "${var.env}-karpenter-interruption"
-  message_retention_seconds = 300  # 5 minutes (Spot gives 2 min warning)
+  message_retention_seconds = 300 # 5 minutes (Spot gives 2 min warning)
   sqs_managed_sse_enabled   = true
 
   tags = {
