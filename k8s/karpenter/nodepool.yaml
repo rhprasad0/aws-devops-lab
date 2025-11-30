@@ -19,7 +19,7 @@ spec:
   template:
     metadata:
       labels:
-        karpenter.sh/managed: "true"
+        # Note: karpenter.sh/* labels are restricted and auto-applied by Karpenter
         node-type: karpenter
     spec:
       # Reference the EC2NodeClass for AWS-specific config
