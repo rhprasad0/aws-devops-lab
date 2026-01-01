@@ -13,6 +13,8 @@ resources:
   # - deployment.yaml  # Replaced by rollout.yaml
   - service.yaml
   - ingress.yaml
+  # Week 13: External Secrets - sync API keys from Secrets Manager
+  - external-secret.yaml
 
 # ECR image configuration
 # Image is updated automatically by CI/CD pipeline after successful Trivy scan
@@ -34,7 +36,10 @@ configMapGenerator:
       # Application configuration
       - AWS_REGION=us-east-1
       - DYNAMODB_TABLE_NAME=a2a-guestbook-messages
-      - API_KEYS_SECRET_NAME=a2a-guestbook/api-keys
+      # DEPRECATED: API_KEYS_SECRET_NAME is no longer needed
+      # The app now reads API_KEYS env var from K8s Secret (see rollout.yaml)
+      # Synced by External Secrets Operator from: a2a-guestbook/api-keys
+      - API_KEYS_SECRET_NAME=a2a-guestbook/api-keys  # Keep for backwards compat
       - RATE_LIMIT_PER_MINUTE=10
       - LOG_LEVEL=INFO
       - PORT=8000

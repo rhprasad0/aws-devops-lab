@@ -192,7 +192,8 @@ resource "helm_release" "kyverno" {
           "argocd",
           "argo-rollouts",
           "cert-manager",
-          "amazon-cloudwatch"
+          "amazon-cloudwatch",
+          "external-secrets"  # Week 13: External Secrets Operator
         ]
       }
     })

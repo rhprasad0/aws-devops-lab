@@ -133,6 +133,15 @@ spec:
         envFrom:
         - configMapRef:
             name: guestbook-config
+
+        # Environment from K8s Secret (synced by External Secrets Operator)
+        # This replaces direct AWS SDK calls to Secrets Manager
+        env:
+        - name: API_KEYS
+          valueFrom:
+            secretKeyRef:
+              name: guestbook-api-keys  # Created by ExternalSecret
+              key: api_keys
         
         # Resource requests/limits (cost-appropriate for lab)
         resources:
