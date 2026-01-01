@@ -77,14 +77,14 @@ AMP was ~$20/day (too expensive). Switched to Container Insights via `amazon-clo
 
 ---
 
-### Week 13 – Security & Policy Enforcement
+### Week 13 – Security & Policy Enforcement ✅
 **Goal:** Admission control and secrets management
 
-- [ ] Install Kyverno
-- [ ] Create policies: no `:latest`, require limits, no privileged, require labels
-- [ ] Add Trivy to CI pipeline (fail on HIGH/CRITICAL)
-- [ ] Install External Secrets Operator
-- [ ] Sync secret from Secrets Manager → K8s
+- [x] Install Kyverno
+- [x] Create policies: no `:latest`, require limits, no privileged, require labels
+- [x] Add Trivy to CI pipeline (fail on HIGH/CRITICAL)
+- [x] Install External Secrets Operator
+- [x] Sync secret from Secrets Manager → K8s
 
 **Cost:** ~$5/session (Secrets Manager ~$0.40/secret/month)
 
