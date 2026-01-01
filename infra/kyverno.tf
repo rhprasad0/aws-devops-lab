@@ -89,6 +89,10 @@ resource "helm_release" "kyverno" {
   wait_for_jobs = true
   timeout       = 600 # 10 minutes (CRDs + webhook can take time)
 
+  # Disable helm hooks to avoid post-upgrade hook timeout issues
+  # The webhooksCleanup hook can take longer than expected in some environments
+  disable_webhooks = true
+
   values = [
     yamlencode({
       # Admission controller configuration
@@ -176,9 +180,10 @@ resource "helm_release" "kyverno" {
         install = true
       }
 
-      # Webhook configuration
+      # Webhook cleanup configuration
+      # Disabled to avoid post-upgrade hook timeout issues
       webhooksCleanup = {
-        enabled = true
+        enabled = false
       }
 
       # Exclude system namespaces from policies by default
