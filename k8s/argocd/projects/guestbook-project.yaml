@@ -40,6 +40,9 @@ spec:
       kind: AnalysisTemplate
     - group: argoproj.io
       kind: AnalysisRun
+    # External Secrets Operator CRDs (Week 13)
+    - group: external-secrets.io
+      kind: ExternalSecret
   
   # Cluster-scoped resources that are explicitly allowed
   clusterResourceWhitelist:
