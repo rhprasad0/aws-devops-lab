@@ -55,11 +55,6 @@ spec:
                 - CronJob
                 - ReplicaSet
       validate:
-        message: >-
-          Privileged containers are not allowed. Container '{{ element.name }}'
-          has 'securityContext.privileged: true'. Remove this setting or set it
-          to false. Privileged containers can access host resources and bypass
-          security controls.
         foreach:
           - list: "request.object.spec.containers[]"
             deny:
@@ -68,6 +63,7 @@ spec:
                   - key: "{{ element.securityContext.privileged || false }}"
                     operator: Equals
                     value: true
+                    message: "Container '{{ element.name }}' has privileged: true. Remove this setting."
           - list: "request.object.spec.initContainers[]"
             deny:
               conditions:
@@ -75,6 +71,7 @@ spec:
                   - key: "{{ element.securityContext.privileged || false }}"
                     operator: Equals
                     value: true
+                    message: "Init container '{{ element.name }}' has privileged: true."
           - list: "request.object.spec.ephemeralContainers[]"
             deny:
               conditions:
@@ -82,6 +79,7 @@ spec:
                   - key: "{{ element.securityContext.privileged || false }}"
                     operator: Equals
                     value: true
+                    message: "Ephemeral container has privileged: true."
 
     # Rule 2: Block allowPrivilegeEscalation: true
     - name: deny-privilege-escalation
@@ -97,20 +95,16 @@ spec:
                 - CronJob
                 - ReplicaSet
       validate:
-        message: >-
-          Privilege escalation is not allowed. Container '{{ element.name }}'
-          must set 'securityContext.allowPrivilegeEscalation: false'. This
-          prevents processes from gaining more privileges than their parent.
         foreach:
           - list: "request.object.spec.containers[]"
             deny:
               conditions:
                 all:
                   # Block if allowPrivilegeEscalation is explicitly true
-                  # Note: We allow it to be unset (defaults vary by runtime)
                   - key: "{{ element.securityContext.allowPrivilegeEscalation || false }}"
                     operator: Equals
                     value: true
+                    message: "Container '{{ element.name }}' has allowPrivilegeEscalation: true. Set it to false."
           - list: "request.object.spec.initContainers[]"
             deny:
               conditions:
@@ -118,6 +112,7 @@ spec:
                   - key: "{{ element.securityContext.allowPrivilegeEscalation || false }}"
                     operator: Equals
                     value: true
+                    message: "Init container '{{ element.name }}' has allowPrivilegeEscalation: true."
           - list: "request.object.spec.ephemeralContainers[]"
             deny:
               conditions:
@@ -125,6 +120,7 @@ spec:
                   - key: "{{ element.securityContext.allowPrivilegeEscalation || false }}"
                     operator: Equals
                     value: true
+                    message: "Ephemeral container has allowPrivilegeEscalation: true."
 
     # Rule 3: Block host namespaces (hostPID, hostIPC, hostNetwork)
     - name: deny-host-namespaces

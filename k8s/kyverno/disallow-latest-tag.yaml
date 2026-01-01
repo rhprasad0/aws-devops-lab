@@ -53,10 +53,6 @@ spec:
                 - ReplicaSet
       # Validate all container types
       validate:
-        message: >-
-          Using ':latest' tag or no tag is not allowed.
-          Image '{{ element.image }}' must have an explicit tag (e.g., ':v1.2.3' or ':abc123').
-          This ensures reproducible deployments and reliable rollbacks.
         # forEach iterates over all containers in the pod spec
         foreach:
           # Check regular containers
@@ -68,11 +64,12 @@ spec:
                   - key: "{{ element.image }}"
                     operator: Equals
                     value: "*:latest"
+                    message: "Container '{{ element.name }}' uses image '{{ element.image }}' with :latest tag. Use an explicit tag instead."
                   # Block if image has no tag (no colon after the image name)
-                  # This regex matches images without any tag
                   - key: "{{ element.image }}"
                     operator: NotEquals
                     value: "*:*"
+                    message: "Container '{{ element.name }}' uses image '{{ element.image }}' without a tag. Add an explicit tag (e.g., :v1.2.3)."
           # Check init containers (if present)
           - list: "request.object.spec.initContainers[]"
             deny:
@@ -81,9 +78,11 @@ spec:
                   - key: "{{ element.image }}"
                     operator: Equals
                     value: "*:latest"
+                    message: "Init container '{{ element.name }}' uses :latest tag."
                   - key: "{{ element.image }}"
                     operator: NotEquals
                     value: "*:*"
+                    message: "Init container '{{ element.name }}' has no image tag."
           # Check ephemeral containers (if present)
           - list: "request.object.spec.ephemeralContainers[]"
             deny:
@@ -92,6 +91,8 @@ spec:
                   - key: "{{ element.image }}"
                     operator: Equals
                     value: "*:latest"
+                    message: "Ephemeral container uses :latest tag."
                   - key: "{{ element.image }}"
                     operator: NotEquals
                     value: "*:*"
+                    message: "Ephemeral container has no image tag."

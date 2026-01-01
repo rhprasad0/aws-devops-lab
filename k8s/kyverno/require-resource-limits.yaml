@@ -51,10 +51,6 @@ spec:
                 - CronJob
                 - ReplicaSet
       validate:
-        message: >-
-          All containers must have CPU and memory limits defined.
-          Container '{{ element.name }}' is missing required resource limits.
-          Add: resources.limits.cpu and resources.limits.memory
         foreach:
           # Check regular containers
           - list: "request.object.spec.containers[]"
@@ -65,10 +61,12 @@ spec:
                   - key: "{{ element.resources.limits.cpu || '' }}"
                     operator: Equals
                     value: ""
+                    message: "Container '{{ element.name }}' is missing resources.limits.cpu"
                   # Deny if memory limit is missing or empty
                   - key: "{{ element.resources.limits.memory || '' }}"
                     operator: Equals
                     value: ""
+                    message: "Container '{{ element.name }}' is missing resources.limits.memory"
           # Check init containers (if present)
           - list: "request.object.spec.initContainers[]"
             deny:
@@ -77,9 +75,11 @@ spec:
                   - key: "{{ element.resources.limits.cpu || '' }}"
                     operator: Equals
                     value: ""
+                    message: "Init container '{{ element.name }}' is missing resources.limits.cpu"
                   - key: "{{ element.resources.limits.memory || '' }}"
                     operator: Equals
                     value: ""
+                    message: "Init container '{{ element.name }}' is missing resources.limits.memory"
           # Check ephemeral containers (if present)
           - list: "request.object.spec.ephemeralContainers[]"
             deny:
@@ -88,6 +88,8 @@ spec:
                   - key: "{{ element.resources.limits.cpu || '' }}"
                     operator: Equals
                     value: ""
+                    message: "Ephemeral container is missing resources.limits.cpu"
                   - key: "{{ element.resources.limits.memory || '' }}"
                     operator: Equals
                     value: ""
+                    message: "Ephemeral container is missing resources.limits.memory"
