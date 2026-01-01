@@ -1,0 +1,97 @@
+# =============================================================================
+# Kyverno Policy: Disallow Latest Tag
+# =============================================================================
+#
+# WHY this policy?
+# - The :latest tag is mutable - it can point to different images over time
+# - This breaks reproducibility: "it worked yesterday" becomes impossible to debug
+# - No audit trail: you can't tell which exact image version is running
+# - Rollbacks become unreliable: "latest" yesterday != "latest" today
+#
+# WHAT it does:
+# - Blocks any Pod/Deployment/Job/etc. that uses :latest or no tag at all
+# - Applies to all containers, initContainers, and ephemeralContainers
+#
+# EXCEPTIONS:
+# - System namespaces are excluded in Kyverno's config (kube-system, etc.)
+# - This is a "validate" policy - it blocks non-compliant resources at admission
+#
+# =============================================================================
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: disallow-latest-tag
+  annotations:
+    policies.kyverno.io/title: Disallow Latest Tag
+    policies.kyverno.io/category: Best Practices
+    policies.kyverno.io/severity: medium
+    policies.kyverno.io/subject: Pod
+    policies.kyverno.io/description: >-
+      The ':latest' tag is mutable and can lead to unexpected behavior when
+      images are updated. Require explicit, immutable tags for all container
+      images to ensure reproducibility and reliable rollbacks.
+spec:
+  # Enforce mode blocks non-compliant resources (vs "audit" which only reports)
+  validationFailureAction: Enforce
+
+  # Apply to existing resources in background scans (generates reports)
+  background: true
+
+  rules:
+    - name: validate-image-tag
+      match:
+        any:
+          # Match all workload types that can contain containers
+          - resources:
+              kinds:
+                - Pod
+                - Deployment
+                - StatefulSet
+                - DaemonSet
+                - Job
+                - CronJob
+                - ReplicaSet
+      # Validate all container types
+      validate:
+        message: >-
+          Using ':latest' tag or no tag is not allowed.
+          Image '{{ element.image }}' must have an explicit tag (e.g., ':v1.2.3' or ':abc123').
+          This ensures reproducible deployments and reliable rollbacks.
+        # forEach iterates over all containers in the pod spec
+        foreach:
+          # Check regular containers
+          - list: "request.object.spec.containers[]"
+            deny:
+              conditions:
+                any:
+                  # Block if image ends with :latest
+                  - key: "{{ element.image }}"
+                    operator: Equals
+                    value: "*:latest"
+                  # Block if image has no tag (no colon after the image name)
+                  # This regex matches images without any tag
+                  - key: "{{ element.image }}"
+                    operator: NotEquals
+                    value: "*:*"
+          # Check init containers (if present)
+          - list: "request.object.spec.initContainers[]"
+            deny:
+              conditions:
+                any:
+                  - key: "{{ element.image }}"
+                    operator: Equals
+                    value: "*:latest"
+                  - key: "{{ element.image }}"
+                    operator: NotEquals
+                    value: "*:*"
+          # Check ephemeral containers (if present)
+          - list: "request.object.spec.ephemeralContainers[]"
+            deny:
+              conditions:
+                any:
+                  - key: "{{ element.image }}"
+                    operator: Equals
+                    value: "*:latest"
+                  - key: "{{ element.image }}"
+                    operator: NotEquals
+                    value: "*:*"

@@ -1,0 +1,158 @@
+# =============================================================================
+# Kyverno Policy: Disallow Privileged Containers
+# =============================================================================
+#
+# WHY this policy?
+# - Privileged containers run with ALL Linux capabilities
+# - They can access host devices, modify kernel parameters, escape the container
+# - A compromised privileged container = compromised node = compromised cluster
+# - This is the single most important container security control
+#
+# WHAT it does:
+# - Blocks containers with privileged: true
+# - Blocks containers with allowPrivilegeEscalation: true
+# - Ensures hostPID, hostIPC, hostNetwork are not used
+#
+# WHAT IS privilege escalation?
+# - allowPrivilegeEscalation: true lets a process gain MORE privileges than its parent
+# - Common attack vector: setuid binaries, kernel exploits
+# - Should be false unless you have a very specific reason
+#
+# EXCEPTIONS:
+# - System namespaces (kube-system) are excluded in Kyverno config
+# - Some system components (CNI, CSI drivers) legitimately need privileges
+#
+# =============================================================================
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: disallow-privileged-containers
+  annotations:
+    policies.kyverno.io/title: Disallow Privileged Containers
+    policies.kyverno.io/category: Pod Security Standards (Baseline)
+    policies.kyverno.io/severity: high
+    policies.kyverno.io/subject: Pod
+    policies.kyverno.io/description: >-
+      Privileged containers have full access to the host and can escape container
+      isolation. This policy enforces the baseline Pod Security Standard by
+      blocking privileged mode and privilege escalation.
+spec:
+  validationFailureAction: Enforce
+  background: true
+
+  rules:
+    # Rule 1: Block privileged: true
+    - name: deny-privileged-containers
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+                - Deployment
+                - StatefulSet
+                - DaemonSet
+                - Job
+                - CronJob
+                - ReplicaSet
+      validate:
+        message: >-
+          Privileged containers are not allowed. Container '{{ element.name }}'
+          has 'securityContext.privileged: true'. Remove this setting or set it
+          to false. Privileged containers can access host resources and bypass
+          security controls.
+        foreach:
+          - list: "request.object.spec.containers[]"
+            deny:
+              conditions:
+                all:
+                  - key: "{{ element.securityContext.privileged || false }}"
+                    operator: Equals
+                    value: true
+          - list: "request.object.spec.initContainers[]"
+            deny:
+              conditions:
+                all:
+                  - key: "{{ element.securityContext.privileged || false }}"
+                    operator: Equals
+                    value: true
+          - list: "request.object.spec.ephemeralContainers[]"
+            deny:
+              conditions:
+                all:
+                  - key: "{{ element.securityContext.privileged || false }}"
+                    operator: Equals
+                    value: true
+
+    # Rule 2: Block allowPrivilegeEscalation: true
+    - name: deny-privilege-escalation
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+                - Deployment
+                - StatefulSet
+                - DaemonSet
+                - Job
+                - CronJob
+                - ReplicaSet
+      validate:
+        message: >-
+          Privilege escalation is not allowed. Container '{{ element.name }}'
+          must set 'securityContext.allowPrivilegeEscalation: false'. This
+          prevents processes from gaining more privileges than their parent.
+        foreach:
+          - list: "request.object.spec.containers[]"
+            deny:
+              conditions:
+                all:
+                  # Block if allowPrivilegeEscalation is explicitly true
+                  # Note: We allow it to be unset (defaults vary by runtime)
+                  - key: "{{ element.securityContext.allowPrivilegeEscalation || false }}"
+                    operator: Equals
+                    value: true
+          - list: "request.object.spec.initContainers[]"
+            deny:
+              conditions:
+                all:
+                  - key: "{{ element.securityContext.allowPrivilegeEscalation || false }}"
+                    operator: Equals
+                    value: true
+          - list: "request.object.spec.ephemeralContainers[]"
+            deny:
+              conditions:
+                all:
+                  - key: "{{ element.securityContext.allowPrivilegeEscalation || false }}"
+                    operator: Equals
+                    value: true
+
+    # Rule 3: Block host namespaces (hostPID, hostIPC, hostNetwork)
+    - name: deny-host-namespaces
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+                - Deployment
+                - StatefulSet
+                - DaemonSet
+                - Job
+                - CronJob
+                - ReplicaSet
+      validate:
+        message: >-
+          Sharing host namespaces is not allowed. Found hostPID={{ request.object.spec.hostPID || false }},
+          hostIPC={{ request.object.spec.hostIPC || false }}, hostNetwork={{ request.object.spec.hostNetwork || false }}.
+          These settings break container isolation and allow access to host processes/network.
+        deny:
+          conditions:
+            any:
+              - key: "{{ request.object.spec.hostPID || false }}"
+                operator: Equals
+                value: true
+              - key: "{{ request.object.spec.hostIPC || false }}"
+                operator: Equals
+                value: true
+              - key: "{{ request.object.spec.hostNetwork || false }}"
+                operator: Equals
+                value: true

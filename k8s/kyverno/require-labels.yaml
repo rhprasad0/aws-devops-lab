@@ -1,0 +1,62 @@
+# =============================================================================
+# Kyverno Policy: Require Labels
+# =============================================================================
+#
+# WHY this policy?
+# - Labels are essential for organizing, selecting, and managing resources
+# - Without consistent labels, you can't filter resources by application/team
+# - Monitoring and alerting rely on labels to group metrics
+# - Cost allocation by application requires proper labeling
+# - kubectl commands become painful without labels to filter on
+#
+# WHAT it does:
+# - Requires `app.kubernetes.io/name` label on all workload resources
+# - This is the most fundamental label from the Kubernetes recommended labels
+#   (https://kubernetes.io/docs/concepts/overview/working-with-objects/common-labels/)
+#
+# WHY just app.kubernetes.io/name?
+# - It's the minimum viable label that identifies what application a resource belongs to
+# - More labels (component, part-of, version) are good practice but not enforced
+# - Keeps the policy simple and achievable for all teams
+#
+# =============================================================================
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: require-labels
+  annotations:
+    policies.kyverno.io/title: Require Labels
+    policies.kyverno.io/category: Best Practices
+    policies.kyverno.io/severity: medium
+    policies.kyverno.io/subject: Pod, Label
+    policies.kyverno.io/description: >-
+      Resources must have the 'app.kubernetes.io/name' label to ensure proper
+      organization, monitoring, and cost allocation. This label identifies
+      which application a resource belongs to.
+spec:
+  validationFailureAction: Enforce
+  background: true
+
+  rules:
+    - name: require-app-name-label
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+                - Deployment
+                - StatefulSet
+                - DaemonSet
+                - Job
+                - CronJob
+                - ReplicaSet
+                - Service
+      validate:
+        message: >-
+          The label 'app.kubernetes.io/name' is required on all resources.
+          This label identifies which application the resource belongs to.
+          Add: metadata.labels.app.kubernetes.io/name: <your-app-name>
+        pattern:
+          metadata:
+            labels:
+              app.kubernetes.io/name: "?*"

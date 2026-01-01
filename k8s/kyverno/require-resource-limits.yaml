@@ -1,0 +1,93 @@
+# =============================================================================
+# Kyverno Policy: Require Resource Limits
+# =============================================================================
+#
+# WHY this policy?
+# - Without limits, a single container can consume all node resources
+# - This causes noisy neighbor problems: one runaway pod starves others
+# - Kubernetes scheduler can't make good decisions without resource info
+# - Cost prediction becomes impossible without knowing resource bounds
+# - In production, missing limits = guaranteed incidents during traffic spikes
+#
+# WHAT it does:
+# - Requires both CPU and memory LIMITS on all containers
+# - Requests are optional (good practice but not enforced here)
+# - Applies to all container types (containers, initContainers, ephemeralContainers)
+#
+# WHY limits specifically (not just requests)?
+# - Requests: what the scheduler uses for placement decisions
+# - Limits: the hard ceiling - container gets OOMKilled or CPU-throttled if exceeded
+# - Without limits, a container can use unbounded resources
+#
+# =============================================================================
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: require-resource-limits
+  annotations:
+    policies.kyverno.io/title: Require Resource Limits
+    policies.kyverno.io/category: Best Practices
+    policies.kyverno.io/severity: medium
+    policies.kyverno.io/subject: Pod
+    policies.kyverno.io/description: >-
+      Containers must have CPU and memory limits defined to prevent resource
+      exhaustion and ensure predictable cluster behavior. Without limits, a
+      single container can consume all available node resources.
+spec:
+  validationFailureAction: Enforce
+  background: true
+
+  rules:
+    - name: validate-resource-limits
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+                - Deployment
+                - StatefulSet
+                - DaemonSet
+                - Job
+                - CronJob
+                - ReplicaSet
+      validate:
+        message: >-
+          All containers must have CPU and memory limits defined.
+          Container '{{ element.name }}' is missing required resource limits.
+          Add: resources.limits.cpu and resources.limits.memory
+        foreach:
+          # Check regular containers
+          - list: "request.object.spec.containers[]"
+            deny:
+              conditions:
+                any:
+                  # Deny if cpu limit is missing or empty
+                  - key: "{{ element.resources.limits.cpu || '' }}"
+                    operator: Equals
+                    value: ""
+                  # Deny if memory limit is missing or empty
+                  - key: "{{ element.resources.limits.memory || '' }}"
+                    operator: Equals
+                    value: ""
+          # Check init containers (if present)
+          - list: "request.object.spec.initContainers[]"
+            deny:
+              conditions:
+                any:
+                  - key: "{{ element.resources.limits.cpu || '' }}"
+                    operator: Equals
+                    value: ""
+                  - key: "{{ element.resources.limits.memory || '' }}"
+                    operator: Equals
+                    value: ""
+          # Check ephemeral containers (if present)
+          - list: "request.object.spec.ephemeralContainers[]"
+            deny:
+              conditions:
+                any:
+                  - key: "{{ element.resources.limits.cpu || '' }}"
+                    operator: Equals
+                    value: ""
+                  - key: "{{ element.resources.limits.memory || '' }}"
+                    operator: Equals
+                    value: ""

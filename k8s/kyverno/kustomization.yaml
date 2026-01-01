@@ -1,0 +1,34 @@
+# =============================================================================
+# Kyverno Policies Kustomization
+# =============================================================================
+#
+# This bundles all Kyverno ClusterPolicy resources for easy deployment.
+#
+# APPLY MANUALLY:
+#   kubectl apply -k k8s/kyverno/
+#
+# OR via Argo CD Application (recommended for GitOps)
+#
+# VERIFY POLICIES:
+#   kubectl get clusterpolicies
+#   kubectl describe clusterpolicy <name>
+#
+# CHECK POLICY REPORTS:
+#   kubectl get policyreports -A
+#   kubectl get clusterpolicyreports
+#
+# =============================================================================
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - disallow-latest-tag.yaml
+  - require-resource-limits.yaml
+  - disallow-privileged-containers.yaml
+  - require-labels.yaml
+
+# Common labels for all policies
+commonLabels:
+  app.kubernetes.io/part-of: eks-lab
+  app.kubernetes.io/component: policy-enforcement
+  app.kubernetes.io/managed-by: kustomize
