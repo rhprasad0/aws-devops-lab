@@ -2,7 +2,7 @@
 
 Production-style AWS/EKS DevOps learning platform.
 
-**Timeline:** Part-time weekends (12 hrs/week) | **Budget:** $250/month | **Progress:** Weeks 0-13 ✅, Week 14 ⏭️
+**Timeline:** Part-time weekends (12 hrs/week) | **Budget:** $250/month | **Progress:** Weeks 0-15 ✅ (Week 14 skipped)
 
 ---
 
@@ -15,7 +15,7 @@ make down    # Destroy everything
 
 ---
 
-## Completed (Weeks 0-14)
+## Completed (Weeks 0-15)
 
 | Week | Topic | Status |
 |------|-------|--------|
@@ -34,6 +34,7 @@ make down    # Destroy everything
 | 12 | Stateful: DynamoDB | ✅ |
 | 13 | Security & Policy Enforcement | ✅ |
 | 14 | Async: SQS/SNS Workers | ⏭️ |
+| 15 | Resilience & Chaos | ✅ |
 
 **State Backend:** S3 `ryan-eks-lab-tfstate` + DynamoDB `eks-lab-tfstate-lock`
 
@@ -101,13 +102,13 @@ AMP was ~$20/day (too expensive). Switched to Container Insights via `amazon-clo
 
 ---
 
-### Week 15 – Resilience & Chaos
+### Week 15 – Resilience & Chaos ✅
 **Goal:** Understand failure modes
 
-- [ ] Add PodDisruptionBudgets
-- [ ] Manual chaos: delete pods, drain nodes
-- [ ] AWS FIS experiment: terminate EC2 instance
-- [ ] Document runbooks
+- [x] Add PodDisruptionBudgets (minAvailable: 2 for guestbook)
+- [x] Manual chaos: delete pods, drain nodes (runbook)
+- [x] AWS FIS experiment: terminate EC2 instance
+- [x] Document runbooks (node failure, crashloop debugging)
 
 **Cost:** ~$12/session
 
