@@ -1,0 +1,40 @@
+# Week 15: PodDisruptionBudget for Guestbook
+#
+# WHY use a PDB?
+# During voluntary disruptions (node drains, cluster upgrades, scaling down),
+# Kubernetes needs to evict pods. Without a PDB, it could evict ALL pods at once,
+# causing downtime. The PDB tells Kubernetes: "always keep at least 2 pods running."
+#
+# HOW it works:
+# 1. Admin initiates node drain (kubectl drain node-1)
+# 2. Kubernetes checks PDB before evicting each pod
+# 3. If evicting would violate minAvailable, eviction is BLOCKED
+# 4. Kubernetes waits for replacement pod to be ready elsewhere
+# 5. Only then can it continue draining
+#
+# WHAT this protects against:
+# - Cluster upgrades that drain nodes
+# - Karpenter consolidation (moving pods to cheaper nodes)
+# - Manual node maintenance
+# - Spot instance interruptions (partial protection)
+#
+# WHAT this does NOT protect against:
+# - Node crashes (involuntary - no time to evict gracefully)
+# - Pod OOM kills
+# - Application bugs
+#
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: guestbook
+  namespace: guestbook
+spec:
+  # Keep at least 2 of 3 pods running at all times
+  # This means only 1 pod can be disrupted at a time
+  minAvailable: 2
+
+  # Selector must match the pods we want to protect
+  # Kustomize will add commonLabels to this selector automatically
+  selector:
+    matchLabels:
+      app: guestbook

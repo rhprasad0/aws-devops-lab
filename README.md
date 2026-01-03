@@ -2,7 +2,7 @@
 
 Production-style AWS/EKS DevOps learning platform.
 
-**Timeline:** Part-time weekends (12 hrs/week) | **Budget:** $250/month | **Progress:** Weeks 0-12 ✅
+**Timeline:** Part-time weekends (12 hrs/week) | **Budget:** $250/month | **Progress:** Weeks 0-13 ✅, Week 14 ⏭️
 
 ---
 
@@ -15,7 +15,7 @@ make down    # Destroy everything
 
 ---
 
-## Completed (Weeks 0-12)
+## Completed (Weeks 0-14)
 
 | Week | Topic | Status |
 |------|-------|--------|
@@ -32,6 +32,8 @@ make down    # Destroy everything
 | 10 | Observability: Logs & Traces | ✅ |
 | 11 | Scaling: Karpenter | ✅ |
 | 12 | Stateful: DynamoDB | ✅ |
+| 13 | Security & Policy Enforcement | ✅ |
+| 14 | Async: SQS/SNS Workers | ⏭️ |
 
 **State Backend:** S3 `ryan-eks-lab-tfstate` + DynamoDB `eks-lab-tfstate-lock`
 
@@ -90,16 +92,12 @@ AMP was ~$20/day (too expensive). Switched to Container Insights via `amazon-clo
 
 ---
 
-### Week 14 – Async: SQS/SNS Workers
+### Week 14 – Async: SQS/SNS Workers ⏭️ SKIPPED
 **Goal:** Event-driven architecture
 
-- [ ] Add SQS queue + DLQ, SNS topic (Terraform)
-- [ ] Create IRSA role for app (SQS/SNS permissions)
-- [ ] API endpoint → SQS/SNS
-- [ ] Worker deployment: poll, process, delete messages
-- [ ] CloudWatch alarms for queue depth and DLQ
+**Status:** Skipped - Already familiar with SQS/SNS patterns; doesn't add meaningful functionality to guestbook app.
 
-**Cost:** ~$6/session
+**Cost:** $0 (skipped)
 
 ---
 
