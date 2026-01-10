@@ -2,7 +2,7 @@
 
 Production-style AWS/EKS DevOps learning platform.
 
-**Timeline:** Part-time weekends (12 hrs/week) | **Budget:** $250/month | **Progress:** Weeks 0-15 ✅ (Week 14 skipped)
+**Timeline:** Part-time weekends (12 hrs/week) | **Budget:** $250/month | **Progress:** Weeks 0-15 ✅ (Weeks 14, 16-18 skipped)
 
 ---
 
@@ -35,12 +35,15 @@ make down    # Destroy everything
 | 13 | Security & Policy Enforcement | ✅ |
 | 14 | Async: SQS/SNS Workers | ⏭️ |
 | 15 | Resilience & Chaos | ✅ |
+| 16 | EKS Upgrade | ⏭️ |
+| 17 | Multi-Region & DR | ⏭️ |
+| 18 | Cost Optimization & Wrap-Up | ⏭️ |
 
 **State Backend:** S3 `ryan-eks-lab-tfstate` + DynamoDB `eks-lab-tfstate-lock`
 
 ---
 
-## Remaining Weeks
+## Week Details
 
 ### Week 10 – Observability: Metrics ✅
 **Goal:** ~~AMP + AMG + ADOT~~ → CloudWatch Container Insights
@@ -114,42 +117,30 @@ AMP was ~$20/day (too expensive). Switched to Container Insights via `amazon-clo
 
 ---
 
-### Week 16 – EKS Upgrade
+### Week 16 – EKS Upgrade ⏭️ SKIPPED
 **Goal:** Safe upgrade procedures
 
-- [ ] Research deprecations for next EKS version
-- [ ] Pre-upgrade: check addon compatibility, deprecated APIs
-- [ ] Upgrade control plane in Terraform
-- [ ] Upgrade node groups (or let Karpenter rotate)
-- [ ] Upgrade addons (VPC CNI, CoreDNS, kube-proxy)
+**Status:** Skipped - New role doesn't require EKS; lab objectives met.
 
-**Cost:** ~$8/session
+**Cost:** $0 (skipped)
 
 ---
 
-### Week 17 – Multi-Region & DR
+### Week 17 – Multi-Region & DR ⏭️ SKIPPED
 **Goal:** Basic disaster recovery
 
-- [ ] Create minimal stack in second region
-- [ ] S3 cross-region replication, ECR replication
-- [ ] Route 53 health checks + failover routing
-- [ ] Document manual failover procedure
-- [ ] Test RTO
+**Status:** Skipped - New role doesn't require EKS; lab objectives met.
 
-**Cost:** ~$15/session
+**Cost:** $0 (skipped)
 
 ---
 
-### Week 18 – Cost Optimization & Wrap-Up
+### Week 18 – Cost Optimization & Wrap-Up ⏭️ SKIPPED
 **Goal:** Production-ready cost controls and documentation
 
-- [ ] Cost review by tag in Cost Explorer
-- [ ] Optimize: Spot instances, log retention, ECR lifecycle
-- [ ] Optional: TTL Janitor Lambda
-- [ ] Final architecture diagram
-- [ ] Complete README with runbooks
+**Status:** Skipped - New role doesn't require EKS; lab objectives met.
 
-**Cost:** ~$6/session
+**Cost:** $0 (skipped)
 
 ---
 
